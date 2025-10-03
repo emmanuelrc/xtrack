@@ -1,0 +1,129 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Department {
+  id    Int     @id @default(autoincrement())
+  name String @unique
+  Worker Worker[]
+  Role Role[]
+  Limit Limit[]
+  Dosimeter Dosimeter[]
+}
+
+
+enum Placement {
+  CHEST
+  EYE
+  EXTREMITIES
+  FOETAL
+}
+
+model Dosimeter {
+  id    Int     @id @default(autoincrement())
+  placement Placement?
+  department_id Int @unique
+  Department Department @relation(fields: [department_id], references: [id])
+  is_control Boolean @default(false)
+  Limit Limit[]
+  Reading Reading[]
+  //A dosimeter belongs to a single worker
+  //but a control dosimeter does not belong to a worker
+  worker_id Int @unique
+  Worker Worker? @relation(fields: [worker_id], references: [id])
+}
+
+
+// TODO
+/*
+Add this check in a migration to enforce that a dosimeter without a placement must be a control
+ALTER TABLE "Dosimeter"
+ADD CONSTRAINT dosimeter_control_check
+CHECK (
+  placement IS NOT NULL OR is_control = TRUE
+);
+*/
+
+//predefined constants for radiation_type in Reading
+enum Radiation_Type {
+  ALPHA
+  BETA
+  GAMMA
+  NEUTRON
+  XRAY
+}
+
+model Reading {
+  id    Int     @id @default(autoincrement())
+  dosimeter_id Int @unique
+  Dosimeter Dosimeter @relation(fields: [dosimeter_id], references: [id])
+  is_minimal Boolean
+  is_null Boolean
+  reading_date DateTime
+  reading_period_start DateTime
+  reading_period_end DateTime
+  dose_mSv_chest Decimal
+  dose_mSv_eye Decimal
+  dose_mSv_extremities Decimal
+  dose_mSv_foetal Decimal
+  total_mSv_chest Decimal
+  total_mSv_eye Decimal
+  total_mSv_extremities Decimal
+  total_mSv_foetal Decimal
+  radiation_type Radiation_Type
+}
+
+model Limit {
+  id    Int     @id @default(autoincrement())
+  department_id Int @unique
+  Department Department @relation(fields: [department_id], references: [id])
+  dosimeter_id Int @unique
+  Dosimeter Dosimeter @relation(fields: [dosimeter_id], references: [id])
+  limit_dose_mSv Decimal
+  role_id Int @unique
+  Role Role @relation(fields: [role_id], references: [id])
+}
+
+model Role {
+  id    Int     @id @default(autoincrement())
+  name String @unique
+  Department Department[]
+  Worker Worker[]
+  Limit Limit[]
+}
+
+model User {
+  id    Int     @id @default(autoincrement())
+  email String  @unique
+  username String @unique
+  name  String?
+  password_hash String
+  Worker Worker?
+}
+
+model Worker {
+  id    Int @id @default(autoincrement())
+  Department Department[] //worker can work in several departments
+  Dosimeter Dosimeter[] //worker can wear several dosimeters
+  first_name String
+  last_name String
+  Role Role[] //worker can perform several roles
+
+  //A worker has a unique user account
+  //User accounts who have a Worker record can't be deleted
+  user_id Int @unique
+  User User @relation(fields: [user_id], references: [id], onDelete: Restrict) 
+}
+
