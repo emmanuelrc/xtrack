@@ -1,4 +1,4 @@
-const { PrismaClient, Placement, Radiation_Type } = require('./generated/prisma');
+const { PrismaClient, Placement, Radiation_Type } = require('./generated');
 const fs = require('fs');
 const path = require('path');
 const Papa = require('papaparse');
@@ -24,10 +24,6 @@ function parseRadiationType(value) {
     return upper;
   }
   throw new Error(`Invalid radiation type: ${value}`);
-}
-
-function to3Decimals(value) {
-  return Math.round(value * 1000) / 1000;
 }
 
 async function main() {
@@ -68,10 +64,15 @@ async function main() {
     console.log(`  Created/found department: ${deptName} (ID: ${dept.id})`);
   }
 
-  // 2. Create Roles
+  // 2. Create Roles (including special roles)
   console.log('Creating roles...');
   const roleMap = new Map();
-  for (const roleName of roles) {
+  
+  // Add special roles to the list
+  const allRoles = [...roles, "Radiation Protection Officer", "Head Of Department"];
+  const uniqueRoles = [...new Set(allRoles)];
+  
+  for (const roleName of uniqueRoles) {
     const role = await prisma.role.upsert({
       where: { name: roleName },
       update: {},
@@ -133,7 +134,146 @@ async function main() {
     console.log(`  Created/found worker: ${workerData.first_name} ${workerData.last_name} (ID: ${worker.id})`);
   }
 
-  // 5. Create Dosimeters
+  // 4a. Assign special roles to workers
+  console.log('Assigning special roles...');
+  
+  const rpoRoleId = roleMap.get("Radiation Protection Officer");
+  const hodRoleId = roleMap.get("Head Of Department");
+  
+  // Find all workers and their current roles
+  for (const workerData of workers) {
+    const userId = userMap.get(workerData.user_email);
+    if (!userId) continue;
+    
+    const worker = await prisma.worker.findUnique({
+      where: { user_id: userId },
+      include: { Role: true },
+    });
+    
+    if (!worker) continue;
+    
+    // Check if worker is an Oncologist - add RPO role
+    if (workerData.role_name === "Oncologist") {
+      const hasRPO = worker.Role.some(r => r.id === rpoRoleId);
+      if (!hasRPO) {
+        await prisma.worker.update({
+          where: { id: worker.id },
+          data: {
+            Role: {
+              connect: { id: rpoRoleId },
+            },
+          },
+        });
+        console.log(`  Added Radiation Protection Officer to ${worker.first_name} ${worker.last_name}`);
+      }
+    }
+    
+    // Check if worker role contains "Nurse" - add HOD role
+    if (workerData.role_name.includes("Nurse")) {
+      const hasHOD = worker.Role.some(r => r.id === hodRoleId);
+      if (!hasHOD) {
+        await prisma.worker.update({
+          where: { id: worker.id },
+          data: {
+            Role: {
+              connect: { id: hodRoleId },
+            },
+          },
+        });
+        console.log(`  Added Head Of Department to ${worker.first_name} ${worker.last_name}`);
+      }
+    }
+  }
+
+  // 5. Create Permissions and assign to Roles
+  console.log('Creating permissions...');
+  const permissionNames = ["ALL", "DEPARTMENT", "WORKER"];
+  const permissionMap = new Map();
+  
+  for (const permName of permissionNames) {
+    const permission = await prisma.permission.upsert({
+      where: { name: permName },
+      update: {},
+      create: { name: permName },
+    });
+    permissionMap.set(permName, permission.id);
+    console.log(`  Created/found permission: ${permName} (ID: ${permission.id})`);
+  }
+  
+  // Assign permissions to roles
+  console.log('Assigning permissions to roles...');
+  
+  // Radiation Protection Officer gets ALL, DEPARTMENT, WORKER
+  const rpoRole = await prisma.role.findUnique({
+    where: { name: "Radiation Protection Officer" },
+    include: { Permission: true },
+  });
+  
+  if (rpoRole) {
+    const rpoPermissions = ["ALL", "DEPARTMENT", "WORKER"];
+    for (const permName of rpoPermissions) {
+      const hasPermission = rpoRole.Permission.some(p => p.name === permName);
+      if (!hasPermission) {
+        await prisma.role.update({
+          where: { id: rpoRole.id },
+          data: {
+            Permission: {
+              connect: { id: permissionMap.get(permName) },
+            },
+          },
+        });
+      }
+    }
+    console.log(`  Assigned ALL, DEPARTMENT, WORKER to Radiation Protection Officer`);
+  }
+  
+  // Head Of Department gets DEPARTMENT, WORKER
+  const hodRole = await prisma.role.findUnique({
+    where: { name: "Head Of Department" },
+    include: { Permission: true },
+  });
+  
+  if (hodRole) {
+    const hodPermissions = ["DEPARTMENT", "WORKER"];
+    for (const permName of hodPermissions) {
+      const hasPermission = hodRole.Permission.some(p => p.name === permName);
+      if (!hasPermission) {
+        await prisma.role.update({
+          where: { id: hodRole.id },
+          data: {
+            Permission: {
+              connect: { id: permissionMap.get(permName) },
+            },
+          },
+        });
+      }
+    }
+    console.log(`  Assigned DEPARTMENT, WORKER to Head Of Department`);
+  }
+  
+  // All other roles get WORKER permission
+  const allRolesList = await prisma.role.findMany({
+    include: { Permission: true },
+  });
+  
+  for (const role of allRolesList) {
+    if (role.name !== "Radiation Protection Officer" && role.name !== "Head Of Department") {
+      const hasWorkerPermission = role.Permission.some(p => p.name === "WORKER");
+      if (!hasWorkerPermission) {
+        await prisma.role.update({
+          where: { id: role.id },
+          data: {
+            Permission: {
+              connect: { id: permissionMap.get("WORKER") },
+            },
+          },
+        });
+        console.log(`  Assigned WORKER permission to ${role.name}`);
+      }
+    }
+  }
+
+  // 6. Create Dosimeters
   console.log('Creating dosimeters...');
   const dosimeterMap = new Map();
   const dosimeters = [...new Map(data.map(r => [r.dosimeter_id, {
@@ -177,7 +317,7 @@ async function main() {
     }
   }
 
-  // 6. Create Limits
+  // 7. Create Limits
   console.log('Creating limits...');
   const limits = [...new Map(data.map(r => [`${r.department_name}-${r.role_name}`, {
     department_name: r.department_name,
@@ -213,7 +353,7 @@ async function main() {
     }
   }
 
-  // 7. Create Readings
+  // 8. Create Readings
   console.log('Creating readings...');
   let readingCount = 0;
   for (const row of data) {
@@ -232,14 +372,14 @@ async function main() {
           reading_date: new Date(row.reading_date),
           reading_period_start: new Date(row.reading_period_start),
           reading_period_end: new Date(row.reading_period_end),
-          dose_mSv_chest:  to3Decimals(row.dose_mSv_chest),
-          dose_mSv_eye:  to3Decimals(row.dose_mSv_eye),
-          dose_mSv_extremities:  to3Decimals(row.dose_mSv_extremities),
-          dose_mSv_foetal:  to3Decimals(row.dose_mSv_foetal),
-          total_mSv_chest:  to3Decimals(row.total_mSv_chest),
-          total_mSv_eye:  to3Decimals(row.total_mSv_eye),
-          total_mSv_extremities:  to3Decimals(row.total_mSv_extremities),
-          total_mSv_foetal:  to3Decimals(row.total_mSv_foetal),
+          dose_mSv_chest: row.dose_mSv_chest,
+          dose_mSv_eye: row.dose_mSv_eye,
+          dose_mSv_extremities: row.dose_mSv_extremities,
+          dose_mSv_foetal: row.dose_mSv_foetal,
+          total_mSv_chest: row.total_mSv_chest,
+          total_mSv_eye: row.total_mSv_eye,
+          total_mSv_extremities: row.total_mSv_extremities,
+          total_mSv_foetal: row.total_mSv_foetal,
           radiation_type: parseRadiationType(row.radiation_type),
         },
       });
@@ -252,61 +392,6 @@ async function main() {
 
   console.log('Seed completed successfully!');
 }
-
-
-  // 8. Create Permissions
-    console.log('Creating permissions');
-// create 3 values and assign to roles
-const [permALL, permDEPT, permWORKER] = await Promise.all([
-  prisma.permission.upsert({
-    where: { name: 'ALL' },
-    update: {},
-    create: { name: 'ALL' },
-  }),
-  prisma.permission.upsert({
-    where: { name: 'DEPARTMENT' },
-    update: {},
-    create: { name: 'DEPARTMENT' },
-  }),
-  prisma.permission.upsert({
-    where: { name: 'WORKER' },
-    update: {},
-    create: { name: 'WORKER' },
-  }),
-]);
-
-// Fetch all roles once
-const allRoles = await prisma.role.findMany({ select: { id: true, name: true } });
-
-// Helper: choose permissions by role name
-function permsForRole(name) {
-  if (name === 'Radiation Protection Officer') {
-    // ALL + DEPARTMENT + WORKER
-    return [permALL.id, permDEPT.id, permWORKER.id];
-  }
-  if (name === 'Head of Department') {
-    // DEPARTMENT + WORKER
-    return [permDEPT.id, permWORKER.id];
-  }
-  // Everyone else: WORKER only
-  return [permWORKER.id];
-}
-
-// Apply permissions (overwrite any existing with a clean set)
-await Promise.all(
-  allRoles.map((r) =>
-    prisma.role.update({
-      where: { id: r.id },
-      data: {
-        Permission: {
-          set: permsForRole(r.name).map((id) => ({ id })),
-        },
-      },
-    })
-  )
-);
-
- 
 
 main()
   .catch((e) => {
