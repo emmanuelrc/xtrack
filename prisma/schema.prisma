@@ -21,6 +21,9 @@ model Department {
   Role Role[]
   Limit Limit[]
   Dosimeter Dosimeter[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 
@@ -34,15 +37,20 @@ enum Placement {
 model Dosimeter {
   id    Int     @id @default(autoincrement())
   placement Placement?
-  department_id Int @unique
+  department_id Int
   Department Department @relation(fields: [department_id], references: [id])
   is_control Boolean @default(false)
-  Limit Limit[]
   Reading Reading[]
   //A dosimeter belongs to a single worker
   //but a control dosimeter does not belong to a worker
-  worker_id Int @unique
+  worker_id Int?
   Worker Worker? @relation(fields: [worker_id], references: [id])
+
+  @@index([department_id])
+  @@index([worker_id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 
@@ -56,6 +64,34 @@ CHECK (
 );
 */
 
+model Limit {
+  id    Int     @id @default(autoincrement())
+  department_id Int
+  Department Department @relation(fields: [department_id], references: [id])
+  limit_dose_mSv Decimal @db.Decimal(10, 3)
+  role_id Int
+  Role Role @relation(fields: [role_id], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PermissionName {
+  ALL
+  DEPARTMENT
+  WORKER
+}
+
+model Permission {
+  id    Int     @id @default(autoincrement())
+  name PermissionName @unique
+
+  Role Role[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 //predefined constants for radiation_type in Reading
 enum Radiation_Type {
   ALPHA
@@ -67,34 +103,29 @@ enum Radiation_Type {
 
 model Reading {
   id    Int     @id @default(autoincrement())
-  dosimeter_id Int @unique
+  dosimeter_id Int
   Dosimeter Dosimeter @relation(fields: [dosimeter_id], references: [id])
   is_minimal Boolean
   is_null Boolean
   reading_date DateTime
   reading_period_start DateTime
   reading_period_end DateTime
-  dose_mSv_chest Decimal
-  dose_mSv_eye Decimal
-  dose_mSv_extremities Decimal
-  dose_mSv_foetal Decimal
-  total_mSv_chest Decimal
-  total_mSv_eye Decimal
-  total_mSv_extremities Decimal
-  total_mSv_foetal Decimal
+  dose_mSv_chest Decimal @db.Decimal(10, 3)
+  dose_mSv_eye Decimal @db.Decimal(10, 3)
+  dose_mSv_extremities Decimal @db.Decimal(10, 3)
+  dose_mSv_foetal Decimal @db.Decimal(10, 3)
+  total_mSv_chest Decimal @db.Decimal(10, 3)
+  total_mSv_eye Decimal @db.Decimal(10, 3)
+  total_mSv_extremities Decimal @db.Decimal(10, 3)
+  total_mSv_foetal Decimal @db.Decimal(10, 3)
   radiation_type Radiation_Type
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dosimeter_id, reading_date])
 }
 
-model Limit {
-  id    Int     @id @default(autoincrement())
-  department_id Int @unique
-  Department Department @relation(fields: [department_id], references: [id])
-  dosimeter_id Int @unique
-  Dosimeter Dosimeter @relation(fields: [dosimeter_id], references: [id])
-  limit_dose_mSv Decimal
-  role_id Int @unique
-  Role Role @relation(fields: [role_id], references: [id])
-}
 
 model Role {
   id    Int     @id @default(autoincrement())
@@ -102,6 +133,10 @@ model Role {
   Department Department[]
   Worker Worker[]
   Limit Limit[]
+  Permission Permission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model User {
@@ -111,6 +146,9 @@ model User {
   name  String?
   password_hash String
   Worker Worker?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Worker {
@@ -125,5 +163,10 @@ model Worker {
   //User accounts who have a Worker record can't be deleted
   user_id Int @unique
   User User @relation(fields: [user_id], references: [id], onDelete: Restrict) 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([first_name, last_name])
 }
 
