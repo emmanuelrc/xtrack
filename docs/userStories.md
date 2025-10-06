@@ -8,6 +8,7 @@ Doctor
 Supervising role who has access to data for all workers for a specific company
 
 User stories:
+*Generate safety events
 As a staff member, I want to be able to see my own history of dosimeter readings
 One reading per month shown on a graph
 Filtered by year
