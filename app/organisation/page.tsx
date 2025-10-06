@@ -1,13 +1,14 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button"
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
+import { Pencil } from "lucide-react"
 import { getDepartments } from "@/lib/db/departments"
 import { getRoles } from "@/lib/db/roles"
 
 export default async function OrganisationPage() {
-  const departments = await getDepartments()
-  const roles = await getRoles()
+  const [departments, roles] = await Promise.all([getDepartments(), getRoles()])
 
   return (
     <main className="max-w-sm mx-auto p-4 h-screen overflow-y-auto">
@@ -22,18 +23,27 @@ export default async function OrganisationPage() {
       </nav>
 
       {/* Departments */}
-      <section className="mb-8">
-      <CardHeader>
+      <section className="mb-8" aria-labelledby="dept-heading">
+      <h2
+        id="dept-heading"
+        className="text-gray-700 text-lg font-semibold mb-2">
+        Department Overview
+      </h2>
+      {/* <CardHeader>
         <CardTitle className="text-gray-700">Department Overview</CardTitle>
-      </CardHeader>
+      </CardHeader> */}
       <Card className="bg-gray-200 shadow-md overflow-y-auto max-h-[200]">
         <CardContent>
           <ul className="space-y-2">
             {departments.map((d) => (
               <li
                 key={d.id}
+                className="flex justify-between"
               >
-                {d.name}
+                <span> {d.name } </span>
+                <Link href={`/department/${d.id}/edit`}>
+                  <Pencil className="w-4 h-4 text-gray-700" aria-hidden="true" />
+                </Link>
               </li>
             ))}
           </ul>
@@ -42,10 +52,12 @@ export default async function OrganisationPage() {
       </section>
 
       {/* Roles Section */}
-        <section className="mb-8 max-h-screen">
-      <CardHeader>
-        <CardTitle className="text-gray-700">Roles</CardTitle>
-      </CardHeader>
+      <section className="mb-8 max-h-screen" aria-labelledby="roles-heading">
+      <h2
+        id="roles-heading"
+        className="text-gray-700 text-lg font-semibold mb-2">
+        Roles
+      </h2>
       <Card className="bg-gray-200 shadow-md overflow-y-auto max-h-[200]">
         <CardContent>
           <ul className="space-y-2">
