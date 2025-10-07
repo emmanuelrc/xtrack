@@ -1,13 +1,9 @@
 'use client'
 import { useParams } from "next/navigation";
-import { useEffect } from "react";
-
+import DepartmentManagement from "./_components/DepartmentManagement";
 
 export default function DepartmentEditPage() {
-  const params = useParams(); 
-  const departmentId = params.id;
-
-
-
-  return <h1>Department: {departmentId}</h1>;
+  const { id } = useParams();
+  
+  return <DepartmentManagement departmentId={Number(id)} />;
 }
