@@ -1,4 +1,4 @@
-const { PrismaClient, Placement, Radiation_Type } = require('./generated');
+const { PrismaClient, Placement, Radiation_Type } = require('./generated/prisma');
 const fs = require('fs');
 const path = require('path');
 const Papa = require('papaparse');
