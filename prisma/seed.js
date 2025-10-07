@@ -83,6 +83,73 @@ async function main() {
     console.log(`  Created/found role: ${roleName} (ID: ${role.id})`);
   }
 
+// 2a. Connect Roles to Departments
+  console.log('Connecting roles to departments...');
+  
+  // Extract unique department-role combinations from CSV
+  const deptRolePairs = [...new Set(data.map(r => 
+    `${r.department_name}|${r.role_name}`
+  ))].filter(pair => pair.split('|').every(p => p));
+  
+  for (const pair of deptRolePairs) {
+    const [deptName, roleName] = pair.split('|');
+    const deptId = departmentMap.get(deptName);
+    const roleId = roleMap.get(roleName);
+    
+    if (!deptId || !roleId) continue;
+    
+    // Check if connection already exists
+    const role = await prisma.role.findUnique({
+      where: { id: roleId },
+      include: { Department: true },
+    });
+    
+    const alreadyConnected = role?.Department.some(d => d.id === deptId);
+    
+    if (!alreadyConnected) {
+      await prisma.role.update({
+        where: { id: roleId },
+        data: {
+          Department: {
+            connect: { id: deptId },
+          },
+        },
+      });
+      console.log(`  Connected ${roleName} to ${deptName}`);
+    }
+  }
+  
+  // Connect special roles to all departments
+  const specialRoles = ["Radiation Protection Officer", "Head Of Department"];
+  const allDepartments = await prisma.department.findMany();
+  
+  for (const specialRoleName of specialRoles) {
+    const roleId = roleMap.get(specialRoleName);
+    if (!roleId) continue;
+    
+    for (const dept of allDepartments) {
+      const role = await prisma.role.findUnique({
+        where: { id: roleId },
+        include: { Department: true },
+      });
+      
+      const alreadyConnected = role?.Department.some(d => d.id === dept.id);
+      
+      if (!alreadyConnected) {
+        await prisma.role.update({
+          where: { id: roleId },
+          data: {
+            Department: {
+              connect: { id: dept.id },
+            },
+          },
+        });
+        console.log(`  Connected ${specialRoleName} to ${dept.name}`);
+      }
+    }
+  }
+
+
   // 3. Create Users
   console.log('Creating users...');
   const userMap = new Map();
