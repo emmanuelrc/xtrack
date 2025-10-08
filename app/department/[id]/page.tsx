@@ -42,7 +42,7 @@ export default async function DepartmentPage({
       <div className="flex items-center justify-between">
         <YearPills years={years.length ? years : [year - 1, year]} selectedYear={year} />
       </div>
-      <ChartCard data={monthly} hint={`Current margin: ${year} Spendings`} />
+      <ChartCard data={monthly} />
       <AlertsCard alerts={alerts} />
     </main>
   );
