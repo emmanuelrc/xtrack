@@ -71,7 +71,7 @@ model Limit {
   limit_dose_mSv Decimal @db.Decimal(10, 3)
   role_id Int
   Role Role @relation(fields: [role_id], references: [id])
-
+  placement Placement
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
