@@ -83,6 +83,73 @@ async function main() {
     console.log(`  Created/found role: ${roleName} (ID: ${role.id})`);
   }
 
+// 2a. Connect Roles to Departments
+  console.log('Connecting roles to departments...');
+  
+  // Extract unique department-role combinations from CSV
+  const deptRolePairs = [...new Set(data.map(r => 
+    `${r.department_name}|${r.role_name}`
+  ))].filter(pair => pair.split('|').every(p => p));
+  
+  for (const pair of deptRolePairs) {
+    const [deptName, roleName] = pair.split('|');
+    const deptId = departmentMap.get(deptName);
+    const roleId = roleMap.get(roleName);
+    
+    if (!deptId || !roleId) continue;
+    
+    // Check if connection already exists
+    const role = await prisma.role.findUnique({
+      where: { id: roleId },
+      include: { Department: true },
+    });
+    
+    const alreadyConnected = role?.Department.some(d => d.id === deptId);
+    
+    if (!alreadyConnected) {
+      await prisma.role.update({
+        where: { id: roleId },
+        data: {
+          Department: {
+            connect: { id: deptId },
+          },
+        },
+      });
+      console.log(`  Connected ${roleName} to ${deptName}`);
+    }
+  }
+  
+  // Connect special roles to all departments
+  const specialRoles = ["Radiation Protection Officer", "Head Of Department"];
+  const allDepartments = await prisma.department.findMany();
+  
+  for (const specialRoleName of specialRoles) {
+    const roleId = roleMap.get(specialRoleName);
+    if (!roleId) continue;
+    
+    for (const dept of allDepartments) {
+      const role = await prisma.role.findUnique({
+        where: { id: roleId },
+        include: { Department: true },
+      });
+      
+      const alreadyConnected = role?.Department.some(d => d.id === dept.id);
+      
+      if (!alreadyConnected) {
+        await prisma.role.update({
+          where: { id: roleId },
+          data: {
+            Department: {
+              connect: { id: dept.id },
+            },
+          },
+        });
+        console.log(`  Connected ${specialRoleName} to ${dept.name}`);
+      }
+    }
+  }
+
+
   // 3. Create Users
   console.log('Creating users...');
   const userMap = new Map();
@@ -137,10 +204,14 @@ async function main() {
 
   // 4a. Assign special roles to workers
   console.log('Assigning special roles...');
-  
+
   const rpoRoleId = roleMap.get("Radiation Protection Officer");
   const hodRoleId = roleMap.get("Head Of Department");
-  
+
+  // Flags to track if we've assigned these roles
+  let rpoAssigned = false;
+  let hodAssigned = false;
+
   // Find all workers and their current roles
   for (const workerData of workers) {
     const userId = userMap.get(workerData.user_email);
@@ -153,8 +224,10 @@ async function main() {
     
     if (!worker) continue;
     
-    // Check if worker is an Oncologist - add RPO role
-    if (workerData.role_name === "Oncologist") {
+    // Assign RPO to first Oncologist or Nuclear Medicine Physician found
+    if (!rpoAssigned && 
+        (workerData.role_name === "Oncologist" || 
+        workerData.role_name === "Nuclear Medicine Physician")) {
       const hasRPO = worker.Role.some(r => r.id === rpoRoleId);
       if (!hasRPO) {
         await prisma.worker.update({
@@ -165,12 +238,13 @@ async function main() {
             },
           },
         });
-        console.log(`  Added Radiation Protection Officer to ${worker.first_name} ${worker.last_name}`);
+        console.log(`  Added Radiation Protection Officer to ${worker.first_name} ${worker.last_name} (${workerData.role_name})`);
+        rpoAssigned = true; // Mark as assigned
       }
     }
     
-    // Check if worker role contains "Nurse" - add HOD role
-    if (workerData.role_name.includes("Nurse")) {
+    // Assign HOD to first Nurse found
+    if (!hodAssigned && workerData.role_name.includes("Nurse")) {
       const hasHOD = worker.Role.some(r => r.id === hodRoleId);
       if (!hasHOD) {
         await prisma.worker.update({
@@ -181,8 +255,14 @@ async function main() {
             },
           },
         });
-        console.log(`  Added Head Of Department to ${worker.first_name} ${worker.last_name}`);
+        console.log(`  Added Head Of Department to ${worker.first_name} ${worker.last_name} (${workerData.role_name})`);
+        hodAssigned = true; // Mark as assigned
       }
+    }
+    
+    // Exit early if both roles have been assigned
+    if (rpoAssigned && hodAssigned) {
+      break;
     }
   }
 
@@ -318,25 +398,49 @@ async function main() {
     }
   }
 
-  // 7. Create Limits
-  console.log('Creating limits...');
-  const limits = [...new Map(data.map(r => [`${r.department_name}-${r.role_name}`, {
-    department_name: r.department_name,
-    role_name: r.role_name,
-    limit_dose_mSv: r.role_limit_mSv,
-  }])).values()];
+  // 7. Create Limits with placement
+  console.log('Creating limits with placement...');
+  
+  // Extract unique combinations of department, role, placement from non-control dosimeters
+  const limitCombinations = new Map();
+  
+  for (const row of data) {
+    // Skip control dosimeters (they don't have workers/roles)
+    if (parseBoolean(row.dosimeter_is_control)) continue;
+    
+    const placement = parsePlacement(row.dosimeter_placement);
+    // Skip if no valid placement
+    if (!placement) continue;
+    
+    const key = `${row.department_name}-${row.role_name}-${placement}`;
+    
+    if (!limitCombinations.has(key)) {
+      limitCombinations.set(key, {
+        department_name: row.department_name,
+        role_name: row.role_name,
+        placement: placement,
+        limit_dose_mSv: row.role_limit_mSv,
+      });
+    }
+  }
 
-  for (const limitData of limits) {
+  console.log(`Found ${limitCombinations.size} unique department-role-placement combinations`);
+
+  for (const limitData of limitCombinations.values()) {
     const deptId = departmentMap.get(limitData.department_name);
     const roleId = roleMap.get(limitData.role_name);
 
-    if (!deptId || !roleId) continue;
+    if (!deptId || !roleId) {
+      console.log(`  Warning: Missing department or role for ${limitData.role_name} in ${limitData.department_name}`);
+      continue;
+    }
 
     // Check if limit already exists
     const existing = await prisma.limit.findFirst({
       where: {
         department_id: deptId,
         role_id: roleId,
+        placement: limitData.placement,
       },
     });
 
@@ -345,12 +449,13 @@ async function main() {
         data: {
           department_id: deptId,
           role_id: roleId,
+          placement: limitData.placement,
           limit_dose_mSv: limitData.limit_dose_mSv,
         },
       });
-      console.log(`  Created limit for ${limitData.role_name} in ${limitData.department_name}`);
+      console.log(`  Created limit for ${limitData.role_name} in ${limitData.department_name} - ${limitData.placement}: ${limitData.limit_dose_mSv} mSv`);
     } else {
-      console.log(`  Found existing limit for ${limitData.role_name} in ${limitData.department_name}`);
+      console.log(`  Found existing limit for ${limitData.role_name} in ${limitData.department_name} - ${limitData.placement}`);
     }
   }
 
