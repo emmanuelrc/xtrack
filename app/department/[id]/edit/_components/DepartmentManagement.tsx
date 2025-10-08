@@ -46,8 +46,29 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
   const handleAddRole = () => {
     setShowAddRoleModal(true);
   };
-  const handleSetLimit = (role) => {
-    console.log('setLimitClicked', role)
+  const handleSetLimit = async ({roleId, limitId, limitValue, placement}) => {
+    console.log('setLimitClicked',{roleId, limitId, limitValue} )
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    try {
+      const res = await fetch(`${baseUrl}/api/limits`, {
+        method: 'POST',
+        headers: {
+          'Content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          departmentId: department?.id,
+          limitId,
+          roleId,
+          placement,
+          limitDoseMSv: limitValue,
+  
+        })
+      })
+      const updatedLimit = await res.json();
+      // TODO update the UI with the new limit
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+    }
   }
 
   if (isLoading) {
