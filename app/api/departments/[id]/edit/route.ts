@@ -1,18 +1,18 @@
 // app/api/departments/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { getDepartmentWithDetails } from '@/lib/db/departments';
+import { getDepartmentWithRoleLimits } from '@/lib/db/departments';
 
 /**
- * GET /api/departments
+ * GET /api/departments/:id/edit
  */
 export async function GET(  req: NextRequest,
   { params }: { params: { id: string } }) {
     
   try {
 
-    const { id } = params; 
+    let { id } = await params; 
 
-    const department = await getDepartmentWithDetails(Number(id));
+    const department = await getDepartmentWithRoleLimits(Number(id));
 
     if (!department) {
       return NextResponse.json(

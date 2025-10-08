@@ -29,9 +29,6 @@ export default async function OrganisationPage() {
         className="text-gray-700 text-lg font-semibold mb-2">
         Department Overview
       </h2>
-      {/* <CardHeader>
-        <CardTitle className="text-gray-700">Department Overview</CardTitle>
-      </CardHeader> */}
       <Card className="bg-gray-200 shadow-md overflow-y-auto max-h-[200]">
         <CardContent>
           <ul className="space-y-2">
