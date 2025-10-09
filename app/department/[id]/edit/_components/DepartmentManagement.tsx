@@ -6,6 +6,7 @@ import { RoleCard } from './RoleCard';
 import { PlacementLimit, RoleWithLimits } from '@/lib/db/departments';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Placement } from '@prisma/client';
+import { AddRoleDialog } from '@/components/ui/AddRoleDialog';
 
 
 interface DepartmentWithRoles {
@@ -31,7 +32,8 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
   const [department, setDepartment] = useState<DepartmentWithRoles | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddRoleModal, setShowAddRoleModal] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
 
   const fetchDepartmentData = async () => {
     setIsLoading(true);
@@ -52,10 +54,22 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
     fetchDepartmentData();
   }, [departmentId]);
 
-  // TODO: add interactive elements
-  const handleAddRole = () => {
-    setShowAddRoleModal(true);
+
+  /**
+   * Logic for adding a new role
+   */
+  const handleAddRoleClick = () => {
+    setIsDialogOpen(true);
+
+  } 
+  const handleSubmitRole = (roleName: string) => {
+    console.log('adding', roleName);
   };
+
+
+  /**
+   * Logic for setting a new limit
+  */
   const handleSetLimit = async ({roleId, limitId, limitValue, placement}) => {
     console.log('setLimitClicked',{roleId, limitId, limitValue} )
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
@@ -90,7 +104,6 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
     }
   }
 
-
   // TODO: might be worth refactoring the state to make the update less convoluted
   function applyServerLimit (roleId: number, updatedLimit: PlacementLimit) {
     setDepartment(prevState => {
@@ -122,6 +135,10 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
 
   }
 
+  /**
+   * Misc. logic for abnormal states
+   */
+
   if (isLoading) {
     // TODO: add a nice loading component
     return <div>Loading...</div>;
@@ -146,14 +163,16 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
       </Avatar>      
       </nav>
       <div>
-        {/* TODO: implement the modal (see below for logic) */}
           <Button className="
-            bg-white text-black
+            bg-gray-200 text-black
+            hover:bg-white
+            hover:border-gray-200
+            hover:border-2
             rounded-full
             px-4 py-1 
             min-w-full
-            text-sm font-medium
-          " onClick={handleAddRole}>+ Add Role</Button>
+            text-sm font-medium" 
+            onClick={handleAddRoleClick}>+ Add Role</Button>
       </div>
 
         {department?.roles.map((role: RoleWithLimits) => (
@@ -163,17 +182,11 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
             onSetLimit={handleSetLimit}
           />
         ))}
-
-      {/* TODO: add role modal */}
-      {showAddRoleModal && (
-        <div>
-          <h3>Add New Role</h3>
-          <button onClick={() => setShowAddRoleModal(false)}>
-            Close
-          </button>
-          {/* TODO: add form*/}
-        </div>
-      )}
+        <AddRoleDialog
+            isDialogOpen={isDialogOpen}
+            setIsDialogOpen={setIsDialogOpen}
+            onSubmitRole={handleSubmitRole}
+        />
     </main>
   );
 }
