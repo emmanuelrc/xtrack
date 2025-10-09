@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { RoleCard } from './RoleCard';
-import { RoleWithLimits } from '@/lib/db/departments';
+import { PlacementLimit, RoleWithLimits } from '@/lib/db/departments';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Placement } from '@prisma/client';
 
 
 interface DepartmentWithRoles {
@@ -16,6 +17,15 @@ interface DepartmentWithRoles {
 interface DepartmentManagementProps {
   departmentId: number;
 }
+
+interface ServerLimit { 
+  id: number;
+  placement: Placement; 
+  limitDoseMSv: number;
+  hasLimit: boolean 
+};
+
+
 export default function DepartmentManagement({ departmentId }: DepartmentManagementProps) {
 
   const [department, setDepartment] = useState<DepartmentWithRoles | null>(null);
@@ -64,11 +74,52 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
   
         })
       })
-      const updatedLimit = await res.json();
-      // TODO update the UI with the new limit
+      const updatedLimit: ServerLimit = await res.json();
+      const nextLimit: PlacementLimit = {
+        limitId: updatedLimit.id, 
+        placement: updatedLimit.placement, 
+        limit: updatedLimit.limitDoseMSv, 
+        hasLimit: true};
+      console.log(updatedLimit, nextLimit)
+      
+      applyServerLimit(roleId, nextLimit);
+
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');
     }
+  }
+
+
+  // TODO: might be worth refactoring the state to make the update less convoluted
+  function applyServerLimit (roleId: number, updatedLimit: PlacementLimit) {
+    setDepartment(prevState => {
+        if (!prevState) return null;
+        return ({
+          ...prevState,
+          roles: prevState.roles.map(role => (
+            role.id !== roleId
+              ? role
+              : {...role, placementLimits: upsertPlacementLimits(role.placementLimits, updatedLimit)}
+          ))
+        })
+    })};
+  function upsertPlacementLimits (limits: PlacementLimit[], updatedLimit: PlacementLimit): PlacementLimit[] {
+    try {
+      const idx = limits.findIndex(existingLimit => existingLimit.placement === updatedLimit.placement);
+      
+      if (idx === -1) throw new Error("can't find the old limit");
+
+      // [{ placement: "EYE" }] => [{ placement: "EYE", limit: 7, limitId: 28, hasLimit: true }]
+      const nextLimits = [...limits];
+  
+      nextLimits[idx] = { ...nextLimits[idx], ...updatedLimit };
+      return nextLimits;
+    } catch (e) {
+      console.error(e);
+      return limits;
+    }
+
   }
 
   if (isLoading) {
@@ -106,7 +157,7 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
       </div>
 
         {department?.roles.map((role: RoleWithLimits) => (
-          <RoleCard
+          role && <RoleCard
             key={role.id}
             role={role}
             onSetLimit={handleSetLimit}
