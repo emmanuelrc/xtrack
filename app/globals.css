@@ -120,3 +120,38 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* --- Slim edge scrollbars (works in Chrome/Edge/Firefox) --- */
+.scrollbar-slim {
+  /* Firefox */
+  scrollbar-width: thin;               /* skinny */
+  scrollbar-color: oklch(0.707 0.022 261.325) transparent; /* thumb / track */
+  /* Keep layout stable when the bar appears */
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Chrome/Edge/WebKit */
+.scrollbar-slim::-webkit-scrollbar {
+  width: 6px;                          /* vertical bar thickness */
+  height: 6px;                         /* horizontal bar thickness */
+}
+
+.scrollbar-slim::-webkit-scrollbar-thumb {
+  background: oklch(0.707 0.022 261.325); /* matches --ring tone */
+  border-radius: 9999px;
+}
+
+.scrollbar-slim::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.577 0.018 261.325);
+}
+
+.scrollbar-slim::-webkit-scrollbar-track {
+  background: transparent;             /* no gutter color */
+}
+
+/* Hide the old up/down/left/right buttons if the OS shows them */
+.scrollbar-slim::-webkit-scrollbar-button {
+  width: 0;
+  height: 0;
+  display: none;
+}
