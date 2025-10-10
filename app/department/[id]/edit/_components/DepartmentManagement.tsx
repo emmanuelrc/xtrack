@@ -62,8 +62,12 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
     setIsDialogOpen(true);
 
   } 
-  const handleSubmitRole = (roleName: string) => {
-    console.log('adding', roleName);
+
+  const handleSubmitRole = ({roleName, workerIds}:{ 
+    roleName: string; 
+    workerIds: number[] 
+  } ) => {
+    console.log('adding', roleName, workerIds);
   };
 
 
