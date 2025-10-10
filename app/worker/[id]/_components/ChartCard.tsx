@@ -29,6 +29,7 @@ export default function ChartCard({
   /** Monthly dose limit to display as a dashed line (mSv). */
   limit?: number | null;
 }) {
+  // Normalize to 12 months
   const chartData = Array.from({ length: 12 }, (_, i) => {
     const entry = data.find((d) => d.month === i + 1);
     return { month: MONTHS[i], dose: Number(entry?.total_mSv ?? 0) };
@@ -36,7 +37,7 @@ export default function ChartCard({
 
   const maxDose = Math.max(0, ...chartData.map((d) => d.dose));
   const showLimit = typeof limit === "number";
-  const yMax = showLimit ? Math.max(maxDose, limit!) * 1.1 : maxDose * 1.1 || 1;
+  const yMax = showLimit ? Math.max(maxDose, limit!) * 1.1 : maxDose * 1.1 || 1; // keep headroom
 
   const chartConfig = {
     dose: { label: "Dose (mSv)", color: "rgb(22 163 74)" },
@@ -45,6 +46,7 @@ export default function ChartCard({
   return (
     <Card className="bg-white shadow-md">
       <CardContent className="p-4">
+        {/* Left-side vertical axis title */}
         <div className="relative h-[180px]">
           <span
             className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1
@@ -65,6 +67,7 @@ export default function ChartCard({
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
 
+                {/* Y axis shows ONLY the limit value as a tick when provided */}
                 <YAxis
                   type="number"
                   domain={[0, yMax]}
@@ -72,14 +75,19 @@ export default function ChartCard({
                   axisLine={false}
                   width={showLimit ? 28 : 0}
                   ticks={showLimit ? [Number(limit)] : undefined}
-                  tick={showLimit ? { fontSize: 12, fill: "#6b7280" } : false}
+                  tick={
+                    showLimit
+                      ? { fontSize: 12, fill: "#6b7280" } // gray-500
+                      : false
+                  }
                   tickFormatter={(v) => Number(v).toFixed(1)}
                 />
 
+                {/* Dashed dose limit */}
                 {showLimit && (
                   <ReferenceLine
                     y={Number(limit)}
-                    stroke="#e11d48"
+                    stroke="#e11d48"          // rose-600
                     strokeDasharray="6 4"
                     ifOverflow="extendDomain"
                     label={{
