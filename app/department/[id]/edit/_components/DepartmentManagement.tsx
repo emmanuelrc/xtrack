@@ -64,12 +64,12 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
 
   } 
 
-  const handleSubmitRole = async (submitData: { roleName: string; workerIds: number[] }) => {
-    if (!department) {
+  const handleSubmitRole = async (submitData: { roleName: string; workerIds: number[], departmentId?: number }) => {
+    if (!department && !departmentId) {
       throw new Error('Unknown department')
     };
     if (!submitData.roleName) {
-      throw new Error('Role nama is required')
+      throw new Error('Role name is required')
     }
     try {
       const response = await fetch('/api/roles', {
@@ -80,7 +80,7 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
         body: JSON.stringify({
           roleName: submitData.roleName,
           workerIds: submitData.workerIds,
-          departmentId: department.id,
+          departmentId: department?.id || departmentId,
         }),
       });
 
@@ -184,43 +184,46 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
   }
 
   return (
-    <main className="max-w-sm mx-auto p-4 h-screen overflow-y-auto">
-      {/* TODO: extract components */}
+    <div className="h-screen overflow-y-auto">
+      <main className="max-w-sm mx-auto p-4">
+        {/* TODO: extract components */}
 
-      <nav className="flex justify-between">
-      <h1 className="text-xl text-green-700 mb-[1rem]">
-          {department.name}
-      </h1>
-      <Avatar>
-        <AvatarImage src="https://github.com/shadcn.png" />
-        <AvatarFallback>CN</AvatarFallback>
-      </Avatar>      
-      </nav>
-      <div>
-          <Button className="
-            bg-gray-200 text-black
-            hover:bg-white
-            hover:border-gray-200
-            hover:border-2
-            rounded-full
-            px-4 py-1 
-            min-w-full
-            text-sm font-medium" 
-            onClick={handleAddRoleClick}>+ Add Role</Button>
-      </div>
+        <nav className="flex justify-between">
+        <h1 className="text-xl text-green-700 mb-[1rem]">
+            {department.name}
+        </h1>
+        <Avatar>
+          <AvatarImage src="https://github.com/shadcn.png" />
+          <AvatarFallback>CN</AvatarFallback>
+        </Avatar>      
+        </nav>
+        <div>
+            <Button className="
+              bg-gray-200 text-black
+              hover:bg-white
+              hover:border-gray-200
+              hover:border-2
+              rounded-full
+              px-4 py-1 
+              min-w-full
+              text-sm font-medium" 
+              onClick={handleAddRoleClick}>+ Add Role</Button>
+        </div>
 
-        {department.roles.map((role: RoleWithLimits) => (
-          role && <RoleCard
-            key={role.id}
-            role={role}
-            onSetLimit={handleSetLimit}
-          />
-        ))}
-        <AddRoleDialog
-        isDialogOpen={isDialogOpen}
-        setIsDialogOpen={setIsDialogOpen}
-        onSubmitRole={handleSubmitRole} 
-        departmentId={department.id} />
-    </main>
+          {department.roles.map((role: RoleWithLimits) => (
+            role && <RoleCard
+              key={role.id}
+              role={role}
+              onSetLimit={handleSetLimit}
+            />
+          ))}
+          <AddRoleDialog
+          isDialogOpen={isDialogOpen}
+          setIsDialogOpen={setIsDialogOpen}
+          onSubmitRole={handleSubmitRole} 
+          departmentId={department.id} />
+      </main>
+
+    </div>
   );
 }

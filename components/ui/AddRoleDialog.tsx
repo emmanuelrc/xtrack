@@ -10,7 +10,7 @@ import { Button } from "./button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "./dialog"
 import { Input } from "./input"
 import { WorkerMultiSelect } from "./WorkerMultiSelect";
-import { Worker } from "@prisma/client";
+import { Department } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
 
@@ -18,8 +18,8 @@ interface AddRoleDialogProps {
   isDialogOpen: boolean,
   setIsDialogOpen: (open: boolean) => void;
   onOpenChange?: (open: boolean) => void
-  onSubmitRole: (submitData: { roleName: string; workerIds: number[] }) => void;
-  departmentId: number;
+  onSubmitRole: (submitData: { roleName: string; workerIds: number[], departmentId?: number }) => void;
+  departmentId?: number;
 }
 
 export interface WorkerResponse {
@@ -27,6 +27,14 @@ export interface WorkerResponse {
     first_name: string;
     last_name: string;
   }
+
+
+// TODO replace with real auth when implemented
+function getCurrentUserPermission(): 'ALL' | 'DEPARTMENT' | 'WORKER' {
+  // TODO: Replace with actual auth check
+  // For now, return 'ALL' for testing
+  return 'ALL';
+}
 
 export function AddRoleDialog ({
   isDialogOpen, 
@@ -41,23 +49,53 @@ export function AddRoleDialog ({
   const [selectedWorkers, setSelectedWorkers] = useState<WorkerResponse[]>([]);
   const [multiOpen, setMultiOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Department selection state is only used for workers with [ALL] persmissions
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<number | undefined>(undefined);
+  const [departments, setDepartments] = useState<Pick<Department, 'id' | 'name'>[]>([]);
+  const [isDepartmentsLoading, setIsDepartmentsLoading] = useState(false);
 
+  const userPermission = getCurrentUserPermission();
+  const showDepartmentSelector = departmentId === undefined && userPermission === 'ALL';
+
+  // The actual department ID to use (from props or selected)
+  const effectiveDepartmentId = departmentId ?? selectedDepartmentId;
+
+  // Fetch departments if we need to show the selector
+  useEffect(() => {
+    if (showDepartmentSelector && isDialogOpen && departments.length === 0) {
+      setIsDepartmentsLoading(true);
+      fetch('/api/departments')
+        .then(res => res.json())
+        .then(data => {
+          setDepartments(data);
+          setIsDepartmentsLoading(false);
+        })
+        .catch(err => {
+          console.error('Error fetching departments:', err);
+          setIsDepartmentsLoading(false);
+        });
+    }
+  }, [showDepartmentSelector, isDialogOpen, departments.length]);
 
 
   const fetchWorkersApi = useCallback(async (q: string): Promise<WorkerResponse[]> => {
-  try {
-    const params = new URLSearchParams({
-      q,
-      departmentId: departmentId.toString(),
-    });
-    const res = await fetch(`/api/workers?${params}`);
-    if (!res.ok) throw new Error('Failed to fetch workers');
-    return await res.json();
-  } catch (e) {
-    console.error('Error fetching workers:', e);
-    return [];
-  }
-}, [departmentId]);
+    if (!effectiveDepartmentId) return [];
+    try {
+      console.log('effective dept', effectiveDepartmentId)
+      // TODO: decide if filtering by department is even necessary
+      const params = new URLSearchParams({
+        q,
+        departmentId: effectiveDepartmentId.toString(),
+      });
+      const res = await fetch(`/api/workers?${params}`);
+      if (!res.ok) throw new Error('Failed to fetch workers');
+      return await res.json();
+    } catch (e) {
+      console.error('Error fetching workers:', e);
+      return [];
+    }
+  }, [departmentId]);
 
   useEffect(() => {
     if (!isDialogOpen) setRoleName("");
@@ -72,6 +110,7 @@ export function AddRoleDialog ({
       await onSubmitRole({
         roleName: roleName.trim(),
         workerIds: selectedWorkers.map((w) => w.id ?? 0),
+        departmentId: effectiveDepartmentId
       });
       setIsDialogOpen(false);
     } catch (error) {
@@ -100,6 +139,34 @@ export function AddRoleDialog ({
         </DialogHeader>            
         <div>
           <form onSubmit={handleSubmit} id="add-new-role">
+
+          {/* Department Selector - only shown for users with the right permissions */}
+            {showDepartmentSelector && (
+              <div className="mb-4">
+                <label htmlFor="department-select" className="text-sm font-medium">
+                  Department
+                </label>
+                <select
+                  id="department-select"
+                  value={selectedDepartmentId ?? ''}
+                  onChange={(e) => {
+                    setSelectedDepartmentId(e.target.value ? Number(e.target.value) : undefined);
+                    // Reset workers when department changes
+                    setSelectedWorkers([]);
+                  }}
+                  disabled={isDepartmentsLoading || isSubmitting}
+                  className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
+                  required
+                >
+                  <option value="">Select a department...</option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <label htmlFor="role-name" className="text-sm font-medium">Role name</label>
             <Input
               id="role-name" 
@@ -107,6 +174,7 @@ export function AddRoleDialog ({
               value={roleName}
               onChange={(e) => setRoleName(e.target.value)}
               className="mb-4"
+              required
             />
         <div className="space-y-1 mb-10">
             <label className="text-sm font-medium">Assign workers</label>

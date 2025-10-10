@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator"
 import { Pencil } from "lucide-react"
 import { getDepartments } from "@/lib/db/departments"
 import { getRoles } from "@/lib/db/roles"
+import { AddRoleSection } from "./_components/AddRoleSection";
 
 export default async function OrganisationPage() {
   const [departments, roles] = await Promise.all([getDepartments(), getRoles()])
@@ -70,15 +71,8 @@ export default async function OrganisationPage() {
         </CardContent>
       </Card>
       </section>
-      <Button className="
-          bg-gray-200 text-black
-          rounded-full
-          px-4 py-1 
-          min-w-full
-          text-sm font-medium
-      ">
-            Add Role
-      </Button>
+      <AddRoleSection />  
+
     </main>
   )
 }
