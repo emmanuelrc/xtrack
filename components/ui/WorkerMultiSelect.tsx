@@ -5,12 +5,13 @@ import { Button } from './button';
 import { Check, ChevronsUpDown, Loader2, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from './popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from './command';
+import { WorkerResponse } from './AddRoleDialog';
 
 
 type WorkerMultiSelectProps = {
-  value: Worker[];                              
-  onChange: (next: Worker[]) => void;           
-  fetchWorkers: (q: string) => Promise<Worker[]>; 
+  value: WorkerResponse[];                              
+  onChange: (next: WorkerResponse[]) => void;           
+  fetchWorkers: (q: string) => Promise<WorkerResponse[]>; 
   placeholder?: string;
   disabled?: boolean;
   inputAriaLabel?: string;
@@ -29,7 +30,7 @@ export function WorkerMultiSelect ({
   setMultiOpen,
 }: WorkerMultiSelectProps) {
     const [query, setQuery] = useState("");
-    const [results, setResults] = useState<Worker[]>([]);
+    const [results, setResults] = useState<WorkerResponse[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -168,6 +169,7 @@ export function WorkerMultiSelect ({
                               selected ? "opacity-100" : "opacity-0"
                             }`}
                           />
+                          {/* TODO: rethink how this displays */}
                           <div className="flex flex-col">
                             <span>{w.first_name}</span>
                             {w.last_name && (

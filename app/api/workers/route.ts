@@ -1,0 +1,53 @@
+// app/api/workers/route.ts
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/db';
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const q = searchParams.get('q') || '';
+    const departmentId = searchParams.get('departmentId');
+
+    if (!departmentId) {
+      return NextResponse.json(
+        { error: 'Department ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // TODO extract into lib/db/workers.ts
+    const workers = await prisma.worker.findMany({
+      where: {
+        Department: {
+          some: {
+            id: parseInt(departmentId),
+          },
+        },
+        ...(q ? {
+          OR: [
+            { first_name: { contains: q, mode: 'insensitive' } },
+            { last_name: { contains: q, mode: 'insensitive' } },
+          ],
+        } : {}),
+      },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+      },
+      take: 10,
+      orderBy: [
+        { first_name: 'asc' },
+        { last_name: 'asc' },
+      ],
+    });
+
+    return NextResponse.json(workers);
+  } catch (error) {
+    console.error('Error fetching workers:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch workers' },
+      { status: 500 }
+    );
+  }
+}

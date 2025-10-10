@@ -7,6 +7,7 @@ import { PlacementLimit, RoleWithLimits } from '@/lib/db/departments';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Placement } from '@prisma/client';
 import { AddRoleDialog } from '@/components/ui/AddRoleDialog';
+import { Loader2 } from 'lucide-react';
 
 
 interface DepartmentWithRoles {
@@ -63,11 +64,38 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
 
   } 
 
-  const handleSubmitRole = ({roleName, workerIds}:{ 
-    roleName: string; 
-    workerIds: number[] 
-  } ) => {
-    console.log('adding', roleName, workerIds);
+  const handleSubmitRole = async (submitData: { roleName: string; workerIds: number[] }) => {
+    if (!department) {
+      throw new Error('Unknown department')
+    };
+    if (!submitData.roleName) {
+      throw new Error('Role nama is required')
+    }
+    try {
+      const response = await fetch('/api/roles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          roleName: submitData.roleName,
+          workerIds: submitData.workerIds,
+          departmentId: department.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create role');
+      }
+
+      const newRole = await response.json();
+      console.log('Role created:', newRole);
+      
+    } catch (error) {
+      console.error('Error creating role:', error);
+      throw error;
+    }
   };
 
 
@@ -143,14 +171,16 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
    * Misc. logic for abnormal states
    */
 
-  if (isLoading) {
-    // TODO: add a nice loading component
-    return <div>Loading...</div>;
+  if (isLoading || !department) {
+    return <div className="flex items-center gap-2 p-2 text-sm opacity-70">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading…
+            </div>;
   }
 
   if (error) {
-    // TODO: show error in a nicer fashion
-    return <div>Error: {error}</div>;
+    // TODO: flash an error in a toast instead?
+    return <div className="p-2 text-sm text-red-600">{error}</div>;
   }
 
   return (
@@ -159,7 +189,7 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
 
       <nav className="flex justify-between">
       <h1 className="text-xl text-green-700 mb-[1rem]">
-          {department?.name}
+          {department.name}
       </h1>
       <Avatar>
         <AvatarImage src="https://github.com/shadcn.png" />
@@ -179,7 +209,7 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
             onClick={handleAddRoleClick}>+ Add Role</Button>
       </div>
 
-        {department?.roles.map((role: RoleWithLimits) => (
+        {department.roles.map((role: RoleWithLimits) => (
           role && <RoleCard
             key={role.id}
             role={role}
@@ -187,10 +217,10 @@ export default function DepartmentManagement({ departmentId }: DepartmentManagem
           />
         ))}
         <AddRoleDialog
-            isDialogOpen={isDialogOpen}
-            setIsDialogOpen={setIsDialogOpen}
-            onSubmitRole={handleSubmitRole}
-        />
+        isDialogOpen={isDialogOpen}
+        setIsDialogOpen={setIsDialogOpen}
+        onSubmitRole={handleSubmitRole} 
+        departmentId={department.id} />
     </main>
   );
 }

@@ -1,5 +1,6 @@
 "use client"
 import {
+  useCallback,
   useState,
   useEffect,
   type FormEventHandler,
@@ -13,63 +14,77 @@ import { Worker } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
 
-// TODO: replace with API call when ready
-async function fetchWorkersApi(q: string): Promise<Partial<Worker>[]> {
-  // Example: call `/api/workers?q=${encodeURIComponent(q)}`
-  const all: Partial<Worker>[] = [
-    { id: 1, first_name: "Alice", last_name: "Johnson"},
-    { id: 2, first_name: "Bob", last_name: "Smith"},
-    { id: 3, first_name: "Clive", last_name: "Peters"},
-    { id: 4, first_name: "Dana", last_name: "Scully"},
-    { id: 5, first_name: "Alice", last_name: "Peters"},
-  ];
-  if (!q) return all.slice(0, 10);
-  const qq = q.toLowerCase();
-  return all.filter(
-    (w) => w.first_name && w.first_name.toLowerCase().includes(qq)
-  );
-}
-
-
 interface AddRoleDialogProps {
   isDialogOpen: boolean,
   setIsDialogOpen: (open: boolean) => void;
   onOpenChange?: (open: boolean) => void
   onSubmitRole: (submitData: { roleName: string; workerIds: number[] }) => void;
+  departmentId: number;
 }
 
-export function AddRoleDialog ({isDialogOpen, setIsDialogOpen, onOpenChange, onSubmitRole}: AddRoleDialogProps) {
+export interface WorkerResponse {
+    id: number;
+    first_name: string;
+    last_name: string;
+  }
 
+export function AddRoleDialog ({
+  isDialogOpen, 
+  setIsDialogOpen, 
+  onOpenChange, 
+  onSubmitRole,
+  departmentId
+}: AddRoleDialogProps) {
+
+  
   const [roleName, setRoleName] = useState("");
-  const [selectedWorkers, setSelectedWorkers] = useState<Partial<Worker>[]>([]);
-  const [multiOpen, setMultiOpen] = useState(false)
+  const [selectedWorkers, setSelectedWorkers] = useState<WorkerResponse[]>([]);
+  const [multiOpen, setMultiOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+
+
+  const fetchWorkersApi = useCallback(async (q: string): Promise<WorkerResponse[]> => {
+  try {
+    const params = new URLSearchParams({
+      q,
+      departmentId: departmentId.toString(),
+    });
+    const res = await fetch(`/api/workers?${params}`);
+    if (!res.ok) throw new Error('Failed to fetch workers');
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching workers:', e);
+    return [];
+  }
+}, [departmentId]);
 
   useEffect(() => {
     if (!isDialogOpen) setRoleName("");
   }, [isDialogOpen]);
 
-  const handleSubmit: FormEventHandler<HTMLFormElement> = (e) => {
+  const handleSubmit: FormEventHandler<HTMLFormElement> = async (e) => {
     e.preventDefault();
-    if (!roleName.trim()) return; // simple guard; add validation as needed
-    onSubmitRole({
-      roleName: roleName.trim(),
-      workerIds: selectedWorkers.map((w) => w.id??0),
+    if (!roleName.trim()) return;
+    
+    setIsSubmitting(true);
+    try {
+      await onSubmitRole({
+        roleName: roleName.trim(),
+        workerIds: selectedWorkers.map((w) => w.id ?? 0),
+      });
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error('Error submitting role:', error);
+      // TODO handle error nicely
+    } finally {
+      setIsSubmitting(false);
     }
-    );
-    setIsDialogOpen(false);
   };
 
   const handleCancel: MouseEventHandler<HTMLButtonElement> = () => {
     setIsDialogOpen(false);
   };
-  /**
-   * {cn(
-          "sm:max-w-[480px] transition-transform",
-          multiOpen ? "translate-y-[-8%]" : "" // move it up when dropdown is open
-        )}
-
-        "sm:max-w-[425px] mt-[-100px]"
-   */
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={onOpenChange}>
@@ -104,10 +119,21 @@ export function AddRoleDialog ({isDialogOpen, setIsDialogOpen, onOpenChange, onS
               setMultiOpen={setMultiOpen}
             />
         </div>
-            <Button type="button" variant="outline" onClick={handleCancel}>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={handleCancel}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button type='submit' className="bg-green-700" > OK </Button>
+            <Button 
+              type='submit' 
+              className="bg-green-700"
+              disabled={isSubmitting}
+            > 
+              {isSubmitting ? 'Creating...' : 'OK'}
+            </Button>
           </form>
         </div>
       </DialogContent>
