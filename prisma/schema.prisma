@@ -34,6 +34,9 @@ enum Placement {
   FOETAL
 }
 
+
+// TODO: spare dosimeters?
+
 model Dosimeter {
   id    Int     @id @default(autoincrement())
   placement Placement?
