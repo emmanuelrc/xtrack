@@ -1,9 +1,15 @@
-//app/worker/[id]/_components/ChartCard.tsx
-
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts";
 import {
   ChartConfig,
   ChartContainer,
@@ -15,19 +21,32 @@ type Point = { month: number; total_mSv: number };
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-export default function ChartCard({ data }: { data: Point[] }) {
+export default function ChartCard({
+  data,
+  limit,
+}: {
+  data: Point[];
+  /** Monthly dose limit to display as a dashed line (mSv). */
+  limit?: number | null;
+}) {
+  // Normalize to 12 months
   const chartData = Array.from({ length: 12 }, (_, i) => {
     const entry = data.find((d) => d.month === i + 1);
     return { month: MONTHS[i], dose: Number(entry?.total_mSv ?? 0) };
   });
 
+  const maxDose = Math.max(0, ...chartData.map((d) => d.dose));
+  const showLimit = typeof limit === "number";
+  const yMax = showLimit ? Math.max(maxDose, limit!) * 1.1 : maxDose * 1.1 || 1; // keep headroom
+
   const chartConfig = {
-    dose: { label: "Dose (mSv)", color: "rgb(22 163 74)" }, // green-600
+    dose: { label: "Dose (mSv)", color: "rgb(22 163 74)" },
   } satisfies ChartConfig;
 
   return (
     <Card className="bg-white shadow-md">
       <CardContent className="p-4">
+        {/* Left-side vertical axis title */}
         <div className="relative h-[180px]">
           <span
             className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1
@@ -47,7 +66,39 @@ export default function ChartCard({ data }: { data: Point[] }) {
               >
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tickMargin={8} />
-                <YAxis tick={false} axisLine={false} width={0} />
+
+                {/* Y axis shows ONLY the limit value as a tick when provided */}
+                <YAxis
+                  type="number"
+                  domain={[0, yMax]}
+                  tickLine={false}
+                  axisLine={false}
+                  width={showLimit ? 28 : 0}
+                  ticks={showLimit ? [Number(limit)] : undefined}
+                  tick={
+                    showLimit
+                      ? { fontSize: 12, fill: "#6b7280" } // gray-500
+                      : false
+                  }
+                  tickFormatter={(v) => Number(v).toFixed(1)}
+                />
+
+                {/* Dashed dose limit */}
+                {showLimit && (
+                  <ReferenceLine
+                    y={Number(limit)}
+                    stroke="#e11d48"          // rose-600
+                    strokeDasharray="6 4"
+                    ifOverflow="extendDomain"
+                    label={{
+                      value: "Dose Limit",
+                      position: "top",
+                      fill: "#e11d48",
+                      fontSize: 11,
+                    }}
+                  />
+                )}
+
                 <ChartTooltip cursor={{ fillOpacity: 0.06 }} content={<ChartTooltipContent />} />
                 <Bar dataKey="dose" fill="var(--color-dose)" radius={8} barSize={16}>
                   <LabelList

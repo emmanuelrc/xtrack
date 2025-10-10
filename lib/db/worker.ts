@@ -115,3 +115,27 @@ export async function getWorkerMonthlyReadings(
 
   return buckets;
 }
+
+export async function getWorkerMonthlyLimit(
+  workerId: number,
+  placement: Placement
+): Promise<number | null> {
+  // get worker’s primary dept & role (first entries)
+  const w = await prisma.worker.findUnique({
+    where: { id: workerId },
+    select: {
+      Department: { select: { id: true }, take: 1 },
+      Role: { select: { id: true }, take: 1 },
+    },
+  });
+  const deptId = w?.Department?.[0]?.id;
+  const roleId = w?.Role?.[0]?.id;
+  if (!deptId || !roleId) return null;
+
+  const limit = await prisma.limit.findFirst({
+    where: { department_id: deptId, role_id: roleId, placement },
+    select: { limit_dose_mSv: true },
+  });
+
+  return limit ? Number(limit.limit_dose_mSv) : null;
+}

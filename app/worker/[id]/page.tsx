@@ -6,11 +6,12 @@ import {
   getWorkerYears,
   getWorkerPlacements,
   getWorkerMonthlyReadings,
+  getWorkerMonthlyLimit,   // ⬅️ NEW
 } from "@/lib/db/worker";
 import WorkerHeader from "./_components/WorkerHeader";
 import YearPills from "./_components/YearPills";
 import ChartCard from "./_components/ChartCard";
-import ClientPlacementToggle from "./_components/ClientPlacementToggle"; // ✅ use the new file
+import ClientPlacementToggle from "./_components/ClientPlacementToggle";
 
 export default async function WorkerPage({
   params,
@@ -31,10 +32,12 @@ export default async function WorkerPage({
   const fallbackYear = years.length ? years[years.length - 1] : new Date().getUTCFullYear();
   const year = Number(searchParams?.year) || fallbackYear;
 
-  // default to first available placement; if none (edge case), page still renders
   const selectedPlacement = (searchParams?.placement as Placement) || placements[0];
 
-  const monthly = await getWorkerMonthlyReadings(workerId, year, selectedPlacement);
+  const [monthly, limit] = await Promise.all([
+    getWorkerMonthlyReadings(workerId, year, selectedPlacement),
+    selectedPlacement ? getWorkerMonthlyLimit(workerId, selectedPlacement) : Promise.resolve(null),
+  ]);
 
   return (
     <main className="max-w-sm mx-auto p-4 h-screen overflow-y-auto space-y-4">
@@ -44,13 +47,12 @@ export default async function WorkerPage({
         department={basics.department ?? undefined}
       />
 
-      {/* Year selector */}
       <div className="flex items-center justify-between">
         <YearPills years={years.length ? years : [year - 1, year]} selectedYear={year} />
       </div>
 
-      {/* Chart */}
-      <ChartCard data={monthly} />
+      {/* Chart with dashed limit line */}
+      <ChartCard data={monthly} limit={limit ?? undefined} />
 
       {/* Dosimeter toggle (only shows if >1) */}
       <ClientPlacementToggle placements={placements} selected={selectedPlacement} />
