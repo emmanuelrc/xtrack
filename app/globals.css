@@ -155,3 +155,39 @@
   height: 0;
   display: none;
 }
+
+/* Hide scrollbars by default; reveal on parent hover.
+   Works in Chromium/WebKit and Firefox. */
+
+.hover-scroll {
+  /* Firefox */
+  scrollbar-width: none;
+  /* WebKit */
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+.hover-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* On hover of the group wrapper, show thin, styled scrollbars */
+.group\/scroll:hover .hover-scroll {
+  scrollbar-width: thin;                /* Firefox */
+  scrollbar-color: #9ca3af #e5e7eb;     /* thumb track */
+}
+.group\/scroll:hover .hover-scroll::-webkit-scrollbar {
+  width: 10px;   /* vertical */
+  height: 10px;  /* horizontal */
+}
+.group\/scroll:hover .hover-scroll::-webkit-scrollbar-track {
+  background: #e5e7eb;                  /* gray-200 */
+  border-radius: 9999px;
+}
+.group\/scroll:hover .hover-scroll::-webkit-scrollbar-thumb {
+  background: #9ca3af;                  /* gray-400 */
+  border-radius: 9999px;
+  border: 2px solid #e5e7eb;            /* gives a pill look */
+}
+.group\/scroll:hover .hover-scroll::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;                  /* gray-500 on hover */
+}
