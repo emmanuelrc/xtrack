@@ -1,3 +1,4 @@
+//\app\department\[id]\_components/charcard
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";

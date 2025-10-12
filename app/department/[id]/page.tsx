@@ -1,3 +1,4 @@
+// app/department/[id]/page.tsx
 import { notFound } from "next/navigation";
 import {
   getDepartmentById,
@@ -6,6 +7,7 @@ import {
   getDepartmentMonthlyReadings,
   getDepartmentAlerts,
 } from "@/lib/db/department";
+import { getDepartmentMonthlyLimit } from "@/lib/db/limits"; // ⬅️ fetch limit here
 import ScreenHeader from "./_components/ScreenHeader";
 import WorkerTableCard from "./_components/WorkerTableCard";
 import YearPills from "./_components/YearPills";
@@ -29,10 +31,11 @@ export default async function DepartmentPage({
   const fallbackYear = years.length ? years[years.length - 1] : new Date().getUTCFullYear();
   const year = Number(searchParams?.year) || fallbackYear;
 
-  const [workers, monthly, alerts] = await Promise.all([
+  const [workers, monthly, alerts, limit] = await Promise.all([
     getDepartmentWorkersWithLastReading(deptId),
     getDepartmentMonthlyReadings(deptId, year),
     getDepartmentAlerts(deptId, year),
+    getDepartmentMonthlyLimit(deptId), // ⬅️ returns number | null (mSv)
   ]);
 
   return (
@@ -42,7 +45,7 @@ export default async function DepartmentPage({
       <div className="flex items-center justify-between">
         <YearPills years={years.length ? years : [year - 1, year]} selectedYear={year} />
       </div>
-      <ChartCard data={monthly} />
+      <ChartCard data={monthly} limit={limit ?? undefined} /> {/* ⬅️ pass limit */}
       <AlertsCard alerts={alerts} />
     </main>
   );
