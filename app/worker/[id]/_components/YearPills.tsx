@@ -4,17 +4,21 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-type Props = { years: number[]; selectedYear: number };
+type Props = {
+  years: number[];
+  selectedYear: number;
+  /** When true, stretches to screen edges. Default: true (keeps worker page look). */
+  fullBleed?: boolean;
+  /** Smaller height/padding for tighter spaces. */
+  compact?: boolean;
+};
 
-export default function YearPills({ years, selectedYear }: Props) {
+export default function YearPills({ years, selectedYear, fullBleed = true, compact = false }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
 
-  const distinct = useMemo(
-    () => [...new Set(years)].sort((a, b) => a - b),
-    [years]
-  );
+  const distinct = useMemo(() => [...new Set(years)].sort((a, b) => a - b), [years]);
 
   const idx = Math.max(0, distinct.indexOf(selectedYear));
   const hasPrev = idx > 0;
@@ -52,7 +56,6 @@ export default function YearPills({ years, selectedYear }: Props) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Ensure the active year is visible and centered-ish when it changes
   useEffect(() => {
     const el = btnRefs.current[selectedYear];
     el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
@@ -66,7 +69,6 @@ export default function YearPills({ years, selectedYear }: Props) {
     if (y !== selectedYear) setYear(y);
   };
 
-  // Keep paging scroll with arrows, but ALSO toggle year
   const pageScroll = (dir: -1 | 1) => {
     const el = trackRef.current;
     if (!el) return;
@@ -84,23 +86,28 @@ export default function YearPills({ years, selectedYear }: Props) {
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      onLeft();
-    } else if (e.key === "ArrowRight") {
-      e.preventDefault();
-      onRight();
-    }
+    if (e.key === "ArrowLeft") { e.preventDefault(); onLeft(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); onRight(); }
   };
 
+  const containerClass = fullBleed
+    ? "relative w-screen -mx-4 px-4"
+    : "relative w-full"; // ⬅️ keeps inside card/page width
+
+  const arrowBtnBase =
+    "absolute top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full " +
+    "border border-gray-300 text-gray-700 bg-white/95 hover:bg-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed";
+
+  const trackPad = compact ? "px-1 py-1" : "px-1.5 py-1.5";
+  const pillPad = compact ? "px-3 py-1.5 text-[13px]" : "px-4 py-2 text-sm";
+
   return (
-    <div className="relative w-screen -mx-4 px-4" aria-label="Select year">
-      {/* Left arrow (changes year + pages scroll) */}
+    <div className={containerClass} aria-label="Select year">
       <button
         type="button"
         onClick={onLeft}
         disabled={!hasPrev}
-        className="absolute left-0 top-1/2 -translate-y-1/2 grid place-items-center size-9 rounded-full border border-gray-300 text-gray-700 bg-white/95 hover:bg-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+        className={`${arrowBtnBase} left-0`}
         aria-label="Previous year"
       >
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -108,7 +115,6 @@ export default function YearPills({ years, selectedYear }: Props) {
         </svg>
       </button>
 
-      {/* Track */}
       <div
         className="relative mx-9 rounded-full bg-gray-300"
         role="radiogroup"
@@ -118,19 +124,18 @@ export default function YearPills({ years, selectedYear }: Props) {
         <div
           ref={trackRef}
           className={[
-            "relative flex overflow-x-auto scroll-smooth rounded-full px-1 py-1 gap-1",
+            "relative flex overflow-x-auto scroll-smooth rounded-full gap-1",
+            trackPad,
             needsScroll ? "justify-start" : "justify-center",
           ].join(" ")}
           style={{ scrollbarWidth: "none" }}
           onScroll={measure}
         >
-          {/* Active green thumb */}
           <div
             className="pointer-events-none absolute top-1/2 -translate-y-1/2 rounded-full bg-[rgb(22_163_74)] shadow-md transition-all duration-200"
             style={{ left: thumbStyle.left, width: thumbStyle.width, height: thumbStyle.height }}
             aria-hidden="true"
           />
-
           {distinct.map((y) => {
             const active = y === selectedYear;
             return (
@@ -142,8 +147,9 @@ export default function YearPills({ years, selectedYear }: Props) {
                 role="radio"
                 aria-checked={active}
                 className={[
-                  "relative z-10 rounded-full px-4 py-2 text-sm font-medium transition-colors outline-none",
+                  "relative z-10 rounded-full font-medium transition-colors outline-none",
                   "hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-emerald-500",
+                  pillPad,
                   active ? "text-white" : "text-gray-800",
                 ].join(" ")}
               >
@@ -154,12 +160,11 @@ export default function YearPills({ years, selectedYear }: Props) {
         </div>
       </div>
 
-      {/* Right arrow (changes year + pages scroll) */}
       <button
         type="button"
         onClick={onRight}
         disabled={!hasNext}
-        className="absolute right-0 top-1/2 -translate-y-1/2 grid place-items-center size-9 rounded-full border border-gray-300 text-gray-700 bg-white/95 hover:bg-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+        className={`${arrowBtnBase} right-0`}
         aria-label="Next year"
       >
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">

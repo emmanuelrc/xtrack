@@ -1,14 +1,16 @@
-//app/worker/[id]/_components/WorkerHeader.tsx
+import Link from "next/link";
 import { Bell } from "lucide-react";
 
 export default function WorkerHeader({
   name,
   role,
   department,
+  alertsHref, // link to the alerts page
 }: {
   name: string;
   role?: string | null;
   department?: string | null;
+  alertsHref: string;
 }) {
   return (
     <header className="flex items-center justify-between">
@@ -20,9 +22,14 @@ export default function WorkerHeader({
           </p>
         )}
       </div>
-      <button aria-label="Notifications" className="p-2 rounded-full hover:bg-gray-100">
+
+      <Link
+        href={alertsHref}
+        aria-label="Over-limit alerts"
+        className="p-2 rounded-full hover:bg-gray-100 focus-visible:ring-2 focus-visible:ring-emerald-500 outline-none"
+      >
         <Bell className="w-5 h-5 text-gray-600" />
-      </button>
+      </Link>
     </header>
   );
 }

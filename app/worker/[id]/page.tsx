@@ -6,7 +6,7 @@ import {
   getWorkerYears,
   getWorkerPlacements,
   getWorkerMonthlyReadings,
-  getWorkerMonthlyLimit,   // ⬅️ NEW
+  getWorkerMonthlyLimit,
 } from "@/lib/db/worker";
 import WorkerHeader from "./_components/WorkerHeader";
 import YearPills from "./_components/YearPills";
@@ -41,20 +41,19 @@ export default async function WorkerPage({
 
   return (
     <main className="max-w-sm mx-auto p-4 h-screen overflow-y-auto space-y-4">
-      <WorkerHeader
-        name={basics.fullName}
-        role={basics.role ?? undefined}
-        department={basics.department ?? undefined}
-      />
+<WorkerHeader
+  name={basics.fullName}
+  role={basics.role ?? undefined}
+  department={basics.department ?? undefined}
+  alertsHref={`/worker/${workerId}/alerts?year=${year}`} // ⬅️ no placement param
+/>
 
       <div className="flex items-center justify-between">
         <YearPills years={years.length ? years : [year - 1, year]} selectedYear={year} />
       </div>
 
-      {/* Chart with dashed limit line */}
       <ChartCard data={monthly} limit={limit ?? undefined} />
 
-      {/* Dosimeter toggle (only shows if >1) */}
       <ClientPlacementToggle placements={placements} selected={selectedPlacement} />
     </main>
   );
