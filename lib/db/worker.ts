@@ -139,3 +139,47 @@ export async function getWorkerMonthlyLimit(
 
   return limit ? Number(limit.limit_dose_mSv) : null;
 }
+
+/* -------------------------- NEW: exceedances helper -------------------------- */
+
+export type Exceedance = {
+  month: number;                 // 1..12
+  placement: Placement;
+  dose_mSv: number;
+  limit_mSv: number;
+  percent_over: number;          // e.g., 12.3 means 12.3% over the limit
+};
+
+export async function getWorkerMonthlyExceedances(
+  workerId: number,
+  year?: number,
+  placement?: Placement
+): Promise<Exceedance[]> {
+  const placements = placement ? [placement] : await getWorkerPlacements(workerId);
+  const y = year ?? new Date().getUTCFullYear();
+  const results: Exceedance[] = [];
+
+  for (const p of placements) {
+    const [data, limit] = await Promise.all([
+      getWorkerMonthlyReadings(workerId, y, p),
+      getWorkerMonthlyLimit(workerId, p),
+    ]);
+
+    if (typeof limit !== "number") continue;
+
+    for (const { month, total_mSv } of data) {
+      const dose = Number(total_mSv ?? 0);
+      if (dose > limit) {
+        results.push({
+          month,
+          placement: p,
+          dose_mSv: dose,
+          limit_mSv: limit,
+          percent_over: ((dose - limit) / limit) * 100,
+        });
+      }
+    }
+  }
+
+  return results.sort((a, b) => (a.month - b.month) || a.placement.localeCompare(b.placement));
+}

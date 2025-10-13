@@ -1,3 +1,5 @@
+//app/worker/[id]/_components/ChartCard.tsx
+
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";

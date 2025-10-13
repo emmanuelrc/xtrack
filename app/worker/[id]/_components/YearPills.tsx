@@ -1,18 +1,28 @@
-//app/worker/[id]/_components/YearPills.tsx
+// app/worker/[id]/_components/YearPills.tsx
 "use client";
 
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-export default function YearPills({
-  years,
-  selectedYear,
-}: {
+type Props = {
   years: number[];
   selectedYear: number;
-}) {
+  /** When true, stretches to screen edges. Default: true (keeps worker page look). */
+  fullBleed?: boolean;
+  /** Smaller height/padding for tighter spaces. */
+  compact?: boolean;
+};
+
+export default function YearPills({ years, selectedYear, fullBleed = true, compact = false }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
+
+  const distinct = useMemo(() => [...new Set(years)].sort((a, b) => a - b), [years]);
+
+  const idx = Math.max(0, distinct.indexOf(selectedYear));
+  const hasPrev = idx > 0;
+  const hasNext = idx < distinct.length - 1;
 
   function setYear(y: number) {
     const params = new URLSearchParams(sp?.toString() || "");
@@ -20,28 +30,147 @@ export default function YearPills({
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }
 
-  const distinct = [...new Set(years)].sort((a, b) => a - b);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const btnRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const [thumbStyle, setThumbStyle] = useState({ left: 0, width: 0, height: 0 });
+  const [needsScroll, setNeedsScroll] = useState(false);
+
+  const measure = () => {
+    const btn = btnRefs.current[selectedYear];
+    const track = trackRef.current;
+    if (!btn || !track) return;
+    const b = btn.getBoundingClientRect();
+    const t = track.getBoundingClientRect();
+    setThumbStyle({
+      left: b.left - t.left + track.scrollLeft,
+      width: b.width,
+      height: b.height,
+    });
+    setNeedsScroll(track.scrollWidth > track.clientWidth + 1);
+  };
+
+  useLayoutEffect(measure, [selectedYear, distinct.length]);
+  useEffect(() => {
+    const onResize = () => measure();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  useEffect(() => {
+    const el = btnRefs.current[selectedYear];
+    el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+  }, [selectedYear]);
+
+  const moveSelection = (dir: -1 | 1) => {
+    const i = distinct.indexOf(selectedYear);
+    if (i < 0) return;
+    const j = Math.min(Math.max(i + dir, 0), distinct.length - 1);
+    const y = distinct[j];
+    if (y !== selectedYear) setYear(y);
+  };
+
+  const pageScroll = (dir: -1 | 1) => {
+    const el = trackRef.current;
+    if (!el) return;
+    const delta = Math.round(el.clientWidth * 0.6) * dir;
+    el.scrollBy({ left: delta, behavior: "smooth" });
+  };
+
+  const onLeft = () => {
+    moveSelection(-1);
+    pageScroll(-1);
+  };
+  const onRight = () => {
+    moveSelection(1);
+    pageScroll(1);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowLeft") { e.preventDefault(); onLeft(); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); onRight(); }
+  };
+
+  const containerClass = fullBleed
+    ? "relative w-screen -mx-4 px-4"
+    : "relative w-full"; // ⬅️ keeps inside card/page width
+
+  const arrowBtnBase =
+    "absolute top-1/2 -translate-y-1/2 grid place-items-center size-8 rounded-full " +
+    "border border-gray-300 text-gray-700 bg-white/95 hover:bg-white shadow-sm disabled:opacity-40 disabled:cursor-not-allowed";
+
+  const trackPad = compact ? "px-1 py-1" : "px-1.5 py-1.5";
+  const pillPad = compact ? "px-3 py-1.5 text-[13px]" : "px-4 py-2 text-sm";
 
   return (
-    <div className="flex items-center gap-2">
-      {distinct.map((y) => {
-        const active = y === selectedYear;
-        return (
-          <button
-            key={y}
-            onClick={() => setYear(y)}
-            className={[
-              "px-4 py-1 rounded-full text-sm border",
-              active
-                ? "bg-green-600 text-white border-green-600"
-                : "bg-gray-100 text-gray-800 border-gray-300",
-            ].join(" ")}
-            aria-pressed={active}
-          >
-            {y}
-          </button>
-        );
-      })}
+    <div className={containerClass} aria-label="Select year">
+      <button
+        type="button"
+        onClick={onLeft}
+        disabled={!hasPrev}
+        className={`${arrowBtnBase} left-0`}
+        aria-label="Previous year"
+      >
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M12.7 15.3a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4l4-4a1 1 0 1 1 1.4 1.4L9.41 10l3.3 3.3a1 1 0 0 1 0 1.4z"/>
+        </svg>
+      </button>
+
+      <div
+        className="relative mx-9 rounded-full bg-gray-300"
+        role="radiogroup"
+        aria-label="Year"
+        onKeyDown={onKeyDown}
+      >
+        <div
+          ref={trackRef}
+          className={[
+            "relative flex overflow-x-auto scroll-smooth rounded-full gap-1",
+            trackPad,
+            needsScroll ? "justify-start" : "justify-center",
+          ].join(" ")}
+          style={{ scrollbarWidth: "none" }}
+          onScroll={measure}
+        >
+          <div
+            className="pointer-events-none absolute top-1/2 -translate-y-1/2 rounded-full bg-[rgb(22_163_74)] shadow-md transition-all duration-200"
+            style={{ left: thumbStyle.left, width: thumbStyle.width, height: thumbStyle.height }}
+            aria-hidden="true"
+          />
+          {distinct.map((y) => {
+            const active = y === selectedYear;
+            return (
+              <button
+                key={y}
+                ref={(el) => (btnRefs.current[y] = el)}
+                type="button"
+                onClick={() => setYear(y)}
+                role="radio"
+                aria-checked={active}
+                className={[
+                  "relative z-10 rounded-full font-medium transition-colors outline-none",
+                  "hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-emerald-500",
+                  pillPad,
+                  active ? "text-white" : "text-gray-800",
+                ].join(" ")}
+              >
+                {y}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={onRight}
+        disabled={!hasNext}
+        className={`${arrowBtnBase} right-0`}
+        aria-label="Next year"
+      >
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+          <path d="M7.3 4.7a1 1 0 0 1 1.4 0l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 1 1-1.4-1.4L10.59 10 7.3 6.7a1 1 0 0 1 0-1.4z"/>
+        </svg>
+      </button>
     </div>
   );
 }
