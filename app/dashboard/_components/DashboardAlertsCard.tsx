@@ -15,6 +15,10 @@ const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct",
 
 
 export default function DashboardAlertsCard({ alerts }: { alerts: Alert[] }) {
+
+  const uniqueAlerts = Array.from(
+  new Map(alerts.map(a => [`${a.workerId}-${a.month}`, a])).values()
+);
   return (
     <Card className="bg-gray-200 shadow-md">
       <CardContent className="p-0">
@@ -22,7 +26,7 @@ export default function DashboardAlertsCard({ alerts }: { alerts: Alert[] }) {
           <div className="p-3 text-xs text-gray-700">No alerts for this year</div>
         ) : (
           <ul className="divide-y divide-gray-300 max-h-44 overflow-y-auto">
-            {alerts.map((a) => (
+            {uniqueAlerts.map((a) => (
               <li key={`${a.workerId}-${a.month}`} className="flex items-center justify-between px-3 py-2.5">
                 <div className="flex items-center gap-3">
                   <BellRing className="w-4 h-4 text-gray-700" />

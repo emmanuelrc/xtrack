@@ -1,13 +1,26 @@
 // components/ui/AddRoleSection.tsx
 "use client"
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { AddRoleDialog } from "@/components/ui/AddRoleDialog";
 
-export function AddRoleSection() {
+interface AddRoleSectionProps {
+  permissionLevel: 'ALL' | 'DEPARTMENT' | 'WORKER';
+  allowedDepartmentIds: number[] | null;
+}
+
+export function AddRoleSection({ permissionLevel, allowedDepartmentIds }: AddRoleSectionProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
+
+  const preselectedDepartmentId = useMemo(() => {
+    if (permissionLevel === 'DEPARTMENT') {
+      const first = Array.isArray(allowedDepartmentIds) ? allowedDepartmentIds[0] : undefined;
+      return Number.isFinite(first) ? first : undefined;
+    }
+    return undefined;
+  }, [permissionLevel, allowedDepartmentIds]);
 
   const handleSubmitRole = async (submitData: { 
     roleName: string; 
@@ -43,6 +56,9 @@ export function AddRoleSection() {
     }
   };
 
+  // Hide entry point for WORKER users entirely
+  if (permissionLevel === 'WORKER') return null;
+
   return (
     <>
       <Button 
@@ -63,6 +79,10 @@ export function AddRoleSection() {
         setIsDialogOpen={setIsDialogOpen}
         onOpenChange={setIsDialogOpen}
         onSubmitRole={handleSubmitRole}
+        // For DEPARTMENT users we pass a fixed departmentId; ALL users omit it
+        departmentId={preselectedDepartmentId}
+        permissionLevel={permissionLevel}
+        allowedDepartmentIds={allowedDepartmentIds}
       />
     </>
   );

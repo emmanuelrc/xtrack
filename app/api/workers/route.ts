@@ -1,9 +1,15 @@
 // app/api/workers/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { requireAuth, requirePermission } from '@/lib/auth';
 
 export async function GET(request: Request) {
   try {
+    const user = await requireAuth();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const ok = await requirePermission(user, 'WORKER');
+    if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
     const departmentId = searchParams.get('departmentId');

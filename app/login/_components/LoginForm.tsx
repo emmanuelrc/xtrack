@@ -33,8 +33,7 @@ export default function LoginForm() {
       const data = await response.json()
 
       if (data.success) {
-        // router.push('/dashboard') // TODO: decide where to redirect
-        console.log('Logged in user', data.user);
+        router.push('/dashboard')
         router.refresh() // Refresh to update session
         
       } else {
