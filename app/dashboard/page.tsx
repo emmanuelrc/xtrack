@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Card } from '@/components/ui/card'
 import DashboardAlertsCard from './_components/DashboardAlertsCard'
 import StatsCard from './_components/StatsCard'
-import { extractPermissions, requireAuth } from '@/lib/auth'
+import { extractPermissions, requireAuth, getAllowedDepartmentIds } from '@/lib/auth'
 import { getRecentExceedances } from '@/lib/db/alerts'
 
 type DashboardAlert = {
@@ -21,8 +21,8 @@ type DashboardAlert = {
   percent_over?: number
 }
 
-async function getAlerts(): Promise<DashboardAlert[]> {
-  const rows = await getRecentExceedances(3)
+async function getAlerts(allowedDeptIds: number[] | null): Promise<DashboardAlert[]> {
+  const rows = await getRecentExceedances(3, allowedDeptIds)
   return rows.map((e: any) => ({
     workerId: e.workerId,
     name: e.name,
@@ -48,7 +48,9 @@ export default async function DashboardPage() {
     redirect(`/worker/${user.Worker.id}`)
   }
 
-  const alerts = await getAlerts()
+  const allowedDeptIds = getAllowedDepartmentIds(user)
+  const alerts = await getAlerts(allowedDeptIds)
+  const headDeptId = hasDept && user.Worker?.Department?.[0]?.id
 
   const initials = (user.name?.split(' ').map(p => p[0]).join('') || user.username.slice(0,2) || 'U').toUpperCase()
   const displayName = user.name || user.username
@@ -99,6 +101,17 @@ export default async function DashboardPage() {
             className="inline-flex w-full items-center justify-center rounded-xl bg-gray-200 py-3 text-sm font-medium text-gray-800 hover:bg-gray-300 transition"
           >
             Manage your Organisation
+          </Link>
+        </section>
+      )}
+
+      {hasDept && headDeptId && (
+        <section className="pt-2">
+          <Link
+            href={`/department/${headDeptId}/edit`}
+            className="inline-flex w-full items-center justify-center rounded-xl bg-gray-200 py-3 text-sm font-medium text-gray-800 hover:bg-gray-300 transition"
+          >
+            Manage your Department
           </Link>
         </section>
       )}

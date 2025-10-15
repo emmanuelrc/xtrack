@@ -140,7 +140,7 @@ export const getCurrentUser = cache(async () => {
       include: {
         Worker: {
           include: {
-            Role: { include: { Permission: true } },
+            Role: { include: { Permission: true, Department: true } },
             Department: true,
           },
         },

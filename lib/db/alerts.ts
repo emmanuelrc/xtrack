@@ -8,9 +8,20 @@ import { Placement, Reading } from "@prisma/client";
  * We check CHEST and EYE totals against the lowest applicable limit
  * for each worker's role(s) in the dosimeter's department.
  */
-export async function getRecentExceedances(limit = 3) {
+export async function getRecentExceedances(limit = 3, allowedDeptIds: number[] | null = null) {
+  if (Array.isArray(allowedDeptIds) && allowedDeptIds.length === 0) {
+    return [];
+  }
   // Pull a chunk of recent readings to evaluate. Tweak as needed.
   const recentReadings = await prisma.reading.findMany({
+    where:
+      allowedDeptIds === null
+        ? undefined
+        : {
+            Dosimeter: {
+              is: { department_id: { in: allowedDeptIds } },
+            },
+          },
     orderBy: { reading_date: "desc" },
     take: 200,
     include: {
@@ -141,10 +152,17 @@ export async function getRecentExceedances(limit = 3) {
 /**
  * Full list, optionally filtered by year.
  */
-export async function getAllExceedances(params?: { year?: number }) {
+export async function getAllExceedances(
+  params?: { year?: number },
+  allowedDeptIds: number[] | null = null
+) {
   const year = params?.year;
 
-  const where =
+  if (Array.isArray(allowedDeptIds) && allowedDeptIds.length === 0) {
+    return [] as Awaited<ReturnType<typeof getRecentExceedances>>;
+  }
+
+  const dateWhere =
     typeof year === "number"
       ? {
           reading_date: {
@@ -153,6 +171,17 @@ export async function getAllExceedances(params?: { year?: number }) {
           },
         }
       : {};
+
+  const where = {
+    ...dateWhere,
+    ...(allowedDeptIds === null
+      ? {}
+      : {
+          Dosimeter: {
+            is: { department_id: { in: allowedDeptIds } },
+          },
+        }),
+  } as any;
 
   const readings = await prisma.reading.findMany({
     where,
