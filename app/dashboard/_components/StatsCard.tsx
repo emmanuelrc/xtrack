@@ -49,7 +49,7 @@ export default function StatsCard() {
   const [deptCounts, setDeptCounts] = useState<DeptCount[] | null>(null);
   const [dosimeterTotal, setDosimeterTotal] = useState<number | null>(null);
 
-  // departments + which ones actually have readings in the current window
+  // departments 
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -135,7 +135,7 @@ export default function StatsCard() {
     };
   }, [baseCountsUrl, departments]);
 
-  // total dosimeters for the donut center; pass Authorization if stored
+  // total dosimeters for the donut center
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -150,7 +150,7 @@ export default function StatsCard() {
         const n = Number(body?.data?.total);
         if (!cancelled && Number.isFinite(n)) setDosimeterTotal(n);
       } catch {
-        // leave null; DeptDonut will fallback to summing slices
+        
       }
     })();
     return () => {

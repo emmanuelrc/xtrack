@@ -36,17 +36,17 @@ export function ChartTooltipContent({
   payload,
   label,
   hideLabel = false,
-  labelFormatter, // <-- NEW
+  labelFormatter, 
 }: {
   active?: boolean;
   payload?: any[];
   label?: any;
   hideLabel?: boolean;
-  labelFormatter?: (label: any) => string; // <-- NEW
+  labelFormatter?: (label: any) => string; 
 }) {
   if (!active || !payload?.length) return null;
 
-  // De-dupe items with same dataKey (e.g., Area + Line)
+  // De-dupe items with same dataKey 
   const uniqueByKey = Array.from(new Map(payload.map((it) => [it.dataKey, it])).values());
   const fmtVal = (v: unknown) => (typeof v === "number" ? v.toFixed(2) : String(v));
   const fmtLabel = labelFormatter ? labelFormatter : (l: any) => String(l);

@@ -13,12 +13,7 @@ type Alert = {
 
 const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-/*
-  Compact version tailored for the Dashboard:
-  - Shorter row height
-  - Constrained height with vertical scroll
-  - No internal section heading (the page provides it)
-*/
+
 export default function DashboardAlertsCard({ alerts }: { alerts: Alert[] }) {
   return (
     <Card className="bg-gray-200 shadow-md">

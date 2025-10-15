@@ -1,5 +1,5 @@
 // lib/db/stats.ts
-// Location: lib/db/stats.ts
+
 
 import { prisma } from "@/lib/db";
 import { Placement } from "@prisma/client";
@@ -34,17 +34,13 @@ export async function getDepartmentLimits(departmentId: number): Promise<{ CHEST
   return out;
 }
 
-/**
- * Last `monthsBack` months (anchored to latest available month if the recent window is empty).
- * - Mean exposure across workers per month (CHEST/EYE).
- * - Exceedance dot if **any worker** that month exceeded the dept limit for that placement.
- */
+
 export async function getDepartmentMonthlyMeansLast6(departmentId: number, monthsBack = 6) {
   const now = new Date();
   let end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   let start = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - (monthsBack - 1), 1));
 
-  // See if the recent window has data; if not, anchor to latest month with data
+ 
   const recentCount = await prisma.reading.count({
     where: {
       is_null: false,
@@ -79,7 +75,7 @@ export async function getDepartmentMonthlyMeansLast6(departmentId: number, month
     orderBy: { reading_date: "asc" },
   });
 
-  // Build buckets
+ 
   const buckets: MonthPoint[] = [];
   for (let i = monthsBack - 1; i >= 0; i--) {
     const d = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth() - i, 1));
@@ -129,7 +125,7 @@ export async function getDepartmentMonthlyMeansLast6(departmentId: number, month
     b.chestMean = mean(chestVals);
     b.eyeMean   = mean(eyeVals);
 
-    // Exceedance dot if ANY worker exceeded that month (not only mean).
+  
     b.chestExceeds = limits.CHEST != null ? chestVals.some(v => v > limits.CHEST!) : false;
     b.eyeExceeds   = limits.EYE   != null ? eyeVals.some(v => v > limits.EYE!)   : false;
   }

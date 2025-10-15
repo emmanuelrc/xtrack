@@ -42,13 +42,13 @@ export async function GET(req: Request) {
       endExclusive = addMonths(end, 1);
     }
 
-    // All departments (for pills) — always returned
+    // All departments (for pills) 
     const allDepartments = await prisma.department.findMany({
       select: { id: true, name: true },
       orderBy: { name: "asc" },
     });
 
-    // Departments with data in current window (for smarter default selection)
+    // Departments with data in current window 
     const windowReadings = await prisma.reading.findMany({
       where: {
         is_null: false,
@@ -68,8 +68,7 @@ export async function GET(req: Request) {
       allDepartments.filter((d) => withDataIds.includes(d.id)).map((d) => d.name)
     );
 
-    // If the default window has no data and no explicit range was provided,
-    // fall back to the newest 6-month window with readings.
+   
     if (withDataIds.length === 0 && !fromParam && !toParam) {
       const latest = await prisma.reading.findFirst({
         where: { is_null: false, Dosimeter: { is: { is_control: false } } },
@@ -103,7 +102,7 @@ export async function GET(req: Request) {
       }
     }
 
-    // Resolve dept filter (optional)
+    
     let deptId: number | undefined;
     if (deptName) {
       const match = allDepartments.find((d) => d.name === deptName);
@@ -114,8 +113,8 @@ export async function GET(req: Request) {
             points: [],
             limits: {},
             rangeLabel: "",
-            departments: allDepartments,          // ⬅︎ always return all
-            withData: Array.from(withDataNames), // ⬅︎ names that have data
+            departments: allDepartments,          
+            withData: Array.from(withDataNames), 
           },
         });
       }
@@ -283,8 +282,8 @@ export async function GET(req: Request) {
         points,
         limits: {},
         rangeLabel: "",
-        departments: allDepartments,          // ⬅︎ ALL depts (for pills)
-        withData: Array.from(withDataNames), // ⬅︎ Names that have data in window
+        departments: allDepartments,          
+        withData: Array.from(withDataNames), 
       },
     });
   } catch (e) {

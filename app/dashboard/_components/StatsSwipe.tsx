@@ -3,12 +3,7 @@
 
 import * as React from "react";
 
-/*
-  Simple swipe container:
-  - children[0] = Exposure Trends card
-  - children[1] = DeptDonut card
-  Swipe left to see the donut; swipe right to go back.
-*/
+
 export default function StatsSwipe({
   children,
   className = "",
