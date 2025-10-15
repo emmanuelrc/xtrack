@@ -1,20 +1,18 @@
+import { requireAuth, requirePermission } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic'; // ensure this layout runs on the server each request
-
-async function getPermissionsFromRequest() {
-  // TODO when auth is working, check auth token for permissions
-  return 'ALL'
-}
 
 export default async function OrganisationLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const perms = await getPermissionsFromRequest();
-  if (!perms?.includes('ALL')) {
-    redirect('/');
-  }
+
+  const user = await requireAuth()
+  if (!user) redirect('/login');
+  const perms = await requirePermission(user, 'ALL')
+  // TODO: redirect to the right place
+  if (!perms) redirect('/dashboard'); 
   return <>{children}</>;
 }
