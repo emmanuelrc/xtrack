@@ -20,6 +20,8 @@ interface AddRoleDialogProps {
   onOpenChange?: (open: boolean) => void
   onSubmitRole: (submitData: { roleName: string; workerIds: number[], departmentId?: number }) => void;
   departmentId?: number;
+  permissionLevel?: 'ALL' | 'DEPARTMENT' | 'WORKER';
+  allowedDepartmentIds?: number[] | null;
 }
 
 export interface WorkerResponse {
@@ -28,20 +30,14 @@ export interface WorkerResponse {
     last_name: string;
   }
 
-
-// TODO replace with real auth when implemented
-function getCurrentUserPermission(): 'ALL' | 'DEPARTMENT' | 'WORKER' {
-  // TODO: Replace with actual auth check
-  // For now, return 'ALL' for testing
-  return 'ALL';
-}
-
 export function AddRoleDialog ({
   isDialogOpen, 
   setIsDialogOpen, 
   onOpenChange, 
   onSubmitRole,
-  departmentId
+  departmentId,
+  permissionLevel = 'WORKER',
+  allowedDepartmentIds = null
 }: AddRoleDialogProps) {
 
   
@@ -55,11 +51,10 @@ export function AddRoleDialog ({
   const [departments, setDepartments] = useState<Pick<Department, 'id' | 'name'>[]>([]);
   const [isDepartmentsLoading, setIsDepartmentsLoading] = useState(false);
 
-  const userPermission = getCurrentUserPermission();
-  const showDepartmentSelector = departmentId === undefined && userPermission === 'ALL';
+  const showDepartmentSelector = departmentId === undefined && permissionLevel === 'ALL';
 
   // The actual department ID to use (from props or selected)
-  const effectiveDepartmentId = departmentId ?? selectedDepartmentId;
+  const effectiveDepartmentId = departmentId ?? selectedDepartmentId ?? (Array.isArray(allowedDepartmentIds) ? allowedDepartmentIds[0] : undefined);
 
   // Fetch departments if we need to show the selector
   useEffect(() => {
@@ -95,7 +90,7 @@ export function AddRoleDialog ({
       console.error('Error fetching workers:', e);
       return [];
     }
-  }, [departmentId]);
+  }, [departmentId, selectedDepartmentId, effectiveDepartmentId]);
 
   useEffect(() => {
     if (!isDialogOpen) setRoleName("");

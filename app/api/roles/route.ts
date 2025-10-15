@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createRole } from '@/lib/db/roles';
-import { requireAuth, requirePermission } from '@/lib/auth';
+import { requireAuth, requirePermission, getAllowedDepartmentIds } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
     const user = await requireAuth();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const ok = await requirePermission(user, 'ALL');
-    if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const isAll = await requirePermission(user, 'ALL');
+    const isDept = await requirePermission(user, 'DEPARTMENT');
+    if (!isAll && !isDept) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const { roleName, workerIds, departmentId } = await request.json();
 
@@ -17,6 +18,13 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+    if (isDept && departmentId) {
+      const allowed = getAllowedDepartmentIds(user) ?? [];
+      if (!allowed.includes(departmentId)) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    }
+
     const result = await createRole({roleName, workerIds, departmentId});
 
     if (result.error) {

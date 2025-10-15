@@ -10,8 +10,9 @@ export async function GET(req: NextRequest) {
   try {
     const user = await requireAuth();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    const ok = await requirePermission(user, 'DEPARTMENT');
-    if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const canAll = await requirePermission(user, 'ALL');
+    const canDept = await requirePermission(user, 'DEPARTMENT');
+    if (!canAll && !canDept) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     // Parse query parameters from the URL
     const { searchParams } = new URL(req.url);

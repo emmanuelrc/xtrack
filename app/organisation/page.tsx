@@ -6,10 +6,15 @@ import { Separator } from "@/components/ui/separator"
 import { Pencil } from "lucide-react"
 import { getDepartments } from "@/lib/db/departments"
 import { getRoles } from "@/lib/db/roles"
+import { getCurrentUser, extractPermissions, getAllowedDepartmentIds } from "@/lib/auth"
 import { AddRoleSection } from "./_components/AddRoleSection";
 
 export default async function OrganisationPage() {
-  const [departments, roles] = await Promise.all([getDepartments(), getRoles()])
+  const [departments, roles, user] = await Promise.all([getDepartments(), getRoles(), getCurrentUser()])
+
+  const permissionNames = extractPermissions(user)
+  const permissionLevel = (['ALL','DEPARTMENT','WORKER'].find((p) => permissionNames.includes(p)) ?? 'WORKER') as 'ALL'|'DEPARTMENT'|'WORKER'
+  const allowedDepartmentIds = getAllowedDepartmentIds(user)
 
   return (
     <main className="max-w-sm mx-auto p-4 h-screen overflow-y-auto">
@@ -71,7 +76,10 @@ export default async function OrganisationPage() {
         </CardContent>
       </Card>
       </section>
-      <AddRoleSection />  
+      <AddRoleSection 
+        permissionLevel={permissionLevel} 
+        allowedDepartmentIds={allowedDepartmentIds ?? null}
+      />  
 
     </main>
   )

@@ -161,7 +161,7 @@ async function main() {
         email: userData.email,
         username: userData.username,
         name: userData.name,
-        password_hash: '$2b$10$defaultHashForSeedData', // Placeholder hash
+        password_hash: '$2a$10$HUxqTiM5DeGSxsYQ./Rl3Of3S3W8gsyjv5R3/cZDhm/Mewh8YdpY6', // Everybody's password is "password"
       },
     });
     userMap.set(userData.email, user.id);
