@@ -2,9 +2,11 @@
 
 
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getAllExceedances } from "@/lib/db/alerts";
+import { requireAuth, extractPermissions, getAllowedDepartmentIds } from "@/lib/auth";
 
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -13,10 +15,23 @@ export default async function AlertsPage({
 }: {
   searchParams?: { year?: string };
 }) {
+  const user = await requireAuth();
+  if (!user) redirect('/login');
+
+  const perms = extractPermissions(user);
+  const hasAll = perms.includes('ALL');
+  const hasDept = perms.includes('DEPARTMENT');
+  const hasWorker = perms.includes('WORKER');
+
+  if (!hasAll && !hasDept && hasWorker && user.Worker?.id) {
+    redirect(`/worker/${user.Worker.id}/alerts`);
+  }
+
   const yearNum = Number(searchParams?.year);
   const year = Number.isFinite(yearNum) ? yearNum : undefined;
 
-  const items = await getAllExceedances({ year });
+  const allowedDeptIds = getAllowedDepartmentIds(user);
+  const items = await getAllExceedances({ year }, allowedDeptIds);
 
   return (
     <main className="max-w-sm mx-auto p-4 space-y-4">
