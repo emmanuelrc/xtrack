@@ -2,7 +2,10 @@ import { compare, hash } from 'bcrypt'
 import { cookies } from 'next/headers'
 import * as jose from 'jose'
 import { cache } from 'react'
+import { prisma } from "@/lib/db";
 
+type UserWithPermissions = Awaited<ReturnType<typeof getCurrentUser>
+>
 // JWT types
 interface JWTPayload {
   userId: number
@@ -125,4 +128,76 @@ export const getSession = cache(async () => {
 export async function deleteSession() {
   const cookieStore = await cookies()
   cookieStore.delete('auth_token')
+}
+
+export const getCurrentUser = async () => {
+  const session = await getSession()
+  if (!session) return null
+
+  try {
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    include: {
+      Worker: {
+        include: {
+          Role: {
+            include: {
+              Permission: true
+            }
+          },
+          Department: true
+        }
+      }
+    }
+  })
+
+  return user || null
+  } catch (error) {
+    console.error('Error getting user by ID:', error)
+    return null
+  }
+}
+
+export function extractPermissions(user: UserWithPermissions | null): string[] {
+  if (!user?.Worker) {
+    return []
+  }
+
+  const permissions = user.Worker.Role.flatMap(role => 
+    role.Permission.map(p => p.name)
+  )
+  
+  return [...new Set(permissions)]
+}
+
+export function userHasPermission(
+  user: UserWithPermissions | null, 
+  permissionName: 'ALL' | 'DEPARTMENT' | 'WORKER'
+): boolean {
+  const permissions = extractPermissions(user)
+  return permissions.includes(permissionName)
+}
+
+export async function requireAuth() {
+  const user = await getCurrentUser()
+  
+  if (!user) {
+    return null
+  }
+  
+  return user
+}
+
+export async function requirePermission(
+  user: UserWithPermissions | null, 
+  permissionName: 'ALL' | 'DEPARTMENT' | 'WORKER'
+) {
+  if (!user) {
+    user = await requireAuth();
+  }
+  if (!userHasPermission(user, permissionName)) {
+    return null
+  }
+  
+  return user
 }
