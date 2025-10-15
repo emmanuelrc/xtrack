@@ -4,17 +4,19 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
-type Props = { years: number[]; selectedYear: number };
+type Props = {
+  years: number[];
+  selectedYear: number;
+  /** When true, the gray track spans edge-to-edge (mobile full bleed). */
+  fullBleed?: boolean;
+};
 
-export default function YearPills({ years, selectedYear }: Props) {
+export default function YearPills({ years, selectedYear, fullBleed = true }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
 
-  const distinct = useMemo(
-    () => [...new Set(years)].sort((a, b) => a - b),
-    [years]
-  );
+  const distinct = useMemo(() => [...new Set(years)].sort((a, b) => a - b), [years]);
 
   const idx = Math.max(0, distinct.indexOf(selectedYear));
   const hasPrev = idx > 0;
@@ -92,7 +94,10 @@ export default function YearPills({ years, selectedYear }: Props) {
   };
 
   return (
-    <div className="relative w-screen -mx-4 px-4" aria-label="Select year">
+    <div
+      className={fullBleed ? "relative w-screen -mx-4 px-4" : "relative w-full overflow-hidden"}
+      aria-label="Select year"
+    >
       {/* Left arrow */}
       <button
         type="button"
@@ -102,17 +107,12 @@ export default function YearPills({ years, selectedYear }: Props) {
         aria-label="Previous year"
       >
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-          <path d="M12.7 15.3a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4l4-4a1 1 0 1 1 1.4 1.4L9.41 10l3.3 3.3a1 1 0 0 1 0 1.4z"/>
+          <path d="M12.7 15.3a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4l4-4a1 1 0 1 1 1.4 1.4L9.41 10l3.3 3.3a1 1 0 0 1 0 1.4z" />
         </svg>
       </button>
 
-      {/* Track (same darker gray) */}
-      <div
-        className="relative mx-9 rounded-full bg-gray-300"
-        role="radiogroup"
-        aria-label="Year"
-        onKeyDown={onKeyDown}
-      >
+      {/*  (same darker gray) */}
+      <div className="relative mx-9 rounded-full bg-gray-300" role="radiogroup" aria-label="Year" onKeyDown={onKeyDown}>
         <div
           ref={trackRef}
           className={[
@@ -122,7 +122,7 @@ export default function YearPills({ years, selectedYear }: Props) {
           style={{ scrollbarWidth: "none" }}
           onScroll={measure}
         >
-          {/* Active thumb uses SAME green as chart: rgb(22,163,74) */}
+          {/* SAME green as chart: rgb(22,163,74) */}
           <div
             className="pointer-events-none absolute top-1/2 -translate-y-1/2 rounded-full bg-[rgb(22_163_74)] shadow-md transition-all duration-200"
             style={{ left: thumbStyle.left, width: thumbStyle.width, height: thumbStyle.height }}
@@ -161,7 +161,7 @@ export default function YearPills({ years, selectedYear }: Props) {
         aria-label="Next year"
       >
         <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-          <path d="M7.3 4.7a1 1 0 0 1 1.4 0l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 1 1-1.4-1.4L10.59 10 7.3 6.7a1 1 0 0 1 0-1.4z"/>
+          <path d="M7.3 4.7a1 1 0 0 1 1.4 0l4 4a1 1 0 0 1 0 1.4l-4 4a1 1 0 1 1-1.4-1.4L10.59 10 7.3 6.7a1 1 0 0 1 0-1.4z" />
         </svg>
       </button>
     </div>

@@ -7,7 +7,7 @@ import {
   getDepartmentMonthlyReadings,
   getDepartmentAlerts,
 } from "@/lib/db/department";
-import { getDepartmentMonthlyLimit } from "@/lib/db/limits"; // ⬅️ fetch limit here
+import { getDepartmentMonthlyLimit } from "@/lib/db/limits"; 
 import ScreenHeader from "./_components/ScreenHeader";
 import WorkerTableCard from "./_components/WorkerTableCard";
 import YearPills from "./_components/YearPills";
@@ -35,7 +35,7 @@ export default async function DepartmentPage({
     getDepartmentWorkersWithLastReading(deptId),
     getDepartmentMonthlyReadings(deptId, year),
     getDepartmentAlerts(deptId, year),
-    getDepartmentMonthlyLimit(deptId), // ⬅️ returns number | null (mSv)
+    getDepartmentMonthlyLimit(deptId), 
   ]);
 
   return (
@@ -45,7 +45,7 @@ export default async function DepartmentPage({
       <div className="flex items-center justify-between">
         <YearPills years={years.length ? years : [year - 1, year]} selectedYear={year} />
       </div>
-      <ChartCard data={monthly} limit={limit ?? undefined} /> {/* ⬅️ pass limit */}
+      <ChartCard data={monthly} limit={limit ?? undefined} /> {/* pass limit */}
       <AlertsCard alerts={alerts} />
     </main>
   );
