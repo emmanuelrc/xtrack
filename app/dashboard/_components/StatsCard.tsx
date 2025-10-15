@@ -3,6 +3,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import StatsSwipe from "./StatsSwipe";
+import DeptDonut, { type DeptCount } from "./DeptDonut";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
@@ -35,14 +38,18 @@ export default function StatsCard() {
   const sp = useSearchParams();
   const qs = sp?.toString();
   const baseStatsUrl = qs ? `/api/departments/stats?${qs}` : `/api/departments/stats`;
+  const baseCountsUrl = qs ? `/api/departments/worker-counts?${qs}` : `/api/departments/worker-counts`;
+  const totalUrl = qs ? `/api/dosimeters/total?${qs}` : `/api/dosimeters/total`;
 
   const [error, setError] = useState<string | null>(null);
   const [departments, setDepartments] = useState<Dept[]>([]);
   const [withDataNames, setWithDataNames] = useState<Set<string>>(new Set());
   const [activeDept, setActiveDept] = useState<string | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
+  const [deptCounts, setDeptCounts] = useState<DeptCount[] | null>(null);
+  const [dosimeterTotal, setDosimeterTotal] = useState<number | null>(null);
 
-  // Load ALL departments + which ones have data in the window
+  // departments + which ones actually have readings in the current window
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -71,7 +78,7 @@ export default function StatsCard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseStatsUrl]);
 
-  // Load points for the active department
+  // time series points for active department
   useEffect(() => {
     if (!activeDept) {
       setPoints([]);
@@ -96,6 +103,60 @@ export default function StatsCard() {
       cancelled = true;
     };
   }, [activeDept, baseStatsUrl]);
+
+  // worker/dosimeter counts by department for the donut
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const res = await fetch(baseCountsUrl, {
+          cache: "no-store",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const rows: DeptCount[] = Array.isArray(json?.data) ? json.data : [];
+          if (!cancelled && rows.length) {
+            setDeptCounts(rows);
+            return;
+          }
+        }
+      } catch {
+        // ignore; fallback below
+      }
+      if (!cancelled) {
+        const fallback: DeptCount[] = departments.map((d) => ({ name: d.name, count: 1 }));
+        setDeptCounts(fallback);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [baseCountsUrl, departments]);
+
+  // total dosimeters for the donut center; pass Authorization if stored
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+        const res = await fetch(totalUrl, {
+          cache: "no-store",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return;
+        const body = await res.json();
+        const n = Number(body?.data?.total);
+        if (!cancelled && Number.isFinite(n)) setDosimeterTotal(n);
+      } catch {
+        // leave null; DeptDonut will fallback to summing slices
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [totalUrl]);
 
   const chartData = useMemo(
     () =>
@@ -128,20 +189,17 @@ export default function StatsCard() {
 
   const hasDepts = departments.length > 0;
 
-  return (
+  const ExposureTrendsCard = (
     <Card className="bg-white shadow-md">
-      {/* tighter header */}
       <CardHeader className="pb-0">
         <CardTitle className="text-base leading-5">Exposure Trends</CardTitle>
       </CardHeader>
 
-      {/* remove extra top padding to pull pills up */}
       <CardContent className="pt-0">
-        {/* Department pills (scrollable) with reduced vertical space */}
         <div className="-mt-1 mb-1">
           <div
             className="rounded-full bg-gray-300 px-1 py-0.5 overflow-x-auto"
-            style={{ scrollbarWidth: "none" }} // Firefox
+            style={{ scrollbarWidth: "none" }}
           >
             <div className="inline-flex items-center gap-1 whitespace-nowrap">
               {hasDepts ? (
@@ -180,7 +238,6 @@ export default function StatsCard() {
           <p className="text-sm text-rose-600 mt-2">No departments available.</p>
         ) : (
           <div className="relative">
-            {/* Y-axis label */}
             <span
               className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1
                          text-[10px] text-gray-500 [writing-mode:vertical-rl] rotate-180 select-none"
@@ -222,7 +279,6 @@ export default function StatsCard() {
                     </linearGradient>
                   </defs>
 
-                  {/* Eye */}
                   <Area
                     type="monotone"
                     dataKey="eyeMean"
@@ -232,8 +288,6 @@ export default function StatsCard() {
                     dot={exceedDot("eyeExceeds")}
                     activeDot={{ r: 4 }}
                   />
-
-                  {/* Chest */}
                   <Area
                     type="monotone"
                     dataKey="chestMean"
@@ -249,7 +303,6 @@ export default function StatsCard() {
           </div>
         )}
 
-        {/* Legend */}
         <div className="mt-2 flex items-center gap-5 text-sm">
           <span className="inline-flex items-center gap-2">
             <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#0f766e" }} />
@@ -267,4 +320,18 @@ export default function StatsCard() {
       </CardContent>
     </Card>
   );
+
+  const DonutCard = (
+    <DeptDonut
+      data={
+        deptCounts ??
+        departments.map((d) => ({ name: d.name, count: 1 }))
+      }
+      title="Dosimeters by Department"
+      totalOverride={dosimeterTotal ?? undefined}
+      centerLabel="Dosimeters"
+    />
+  );
+
+  return <StatsSwipe>{[ExposureTrendsCard, DonutCard]}</StatsSwipe>;
 }
