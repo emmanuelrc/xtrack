@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { Placement } from "@prisma/client";
+import { requireAuth, requirePermission, getAllowedDepartmentIds } from "@/lib/auth";
 
 function ymKey(d: Date) {
   return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}`;
@@ -24,6 +25,25 @@ function addMonths(d: Date, delta: number) {
 
 export async function GET(req: Request) {
   try {
+    const user = await requireAuth();
+    if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    const ok = await requirePermission(user, 'DEPARTMENT');
+    if (!ok) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+
+    const allowedDeptIds = getAllowedDepartmentIds(user);
+    if (Array.isArray(allowedDeptIds) && allowedDeptIds.length === 0) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          points: [],
+          limits: {},
+          rangeLabel: "",
+          departments: [],
+          withData: [],
+        },
+      });
+    }
+
     const { searchParams } = new URL(req.url);
     const deptName = searchParams.get("dept");
     const fromParam = parseYM(searchParams.get("from"));
@@ -42,9 +62,10 @@ export async function GET(req: Request) {
       endExclusive = addMonths(end, 1);
     }
 
-    // All departments (for pills) 
+    // All departments (for pills), scoped when needed
     const allDepartments = await prisma.department.findMany({
       select: { id: true, name: true },
+      where: allowedDeptIds === null ? undefined : { id: { in: allowedDeptIds } },
       orderBy: { name: "asc" },
     });
 
@@ -53,7 +74,12 @@ export async function GET(req: Request) {
       where: {
         is_null: false,
         reading_date: { gte: start, lt: endExclusive },
-        Dosimeter: { is: { is_control: false } },
+        Dosimeter: {
+          is: {
+            is_control: false,
+            ...(allowedDeptIds === null ? {} : { department_id: { in: allowedDeptIds } }),
+          },
+        },
       },
       select: { Dosimeter: { select: { department_id: true } } },
     });
@@ -84,7 +110,12 @@ export async function GET(req: Request) {
           where: {
             is_null: false,
             reading_date: { gte: start, lt: endExclusive },
-            Dosimeter: { is: { is_control: false } },
+            Dosimeter: {
+              is: {
+                is_control: false,
+                ...(allowedDeptIds === null ? {} : { department_id: { in: allowedDeptIds } }),
+              },
+            },
           },
           select: { Dosimeter: { select: { department_id: true } } },
         });
@@ -130,6 +161,7 @@ export async function GET(req: Request) {
           is: {
             is_control: false,
             ...(deptId ? { department_id: deptId } : {}),
+            ...(allowedDeptIds === null ? {} : { department_id: { in: allowedDeptIds } }),
           },
         },
       },

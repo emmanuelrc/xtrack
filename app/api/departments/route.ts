@@ -1,5 +1,6 @@
 // app/api/departments/route.ts
 import { NextRequest, NextResponse } from 'next/server';
+import { requireAuth, requirePermission } from '@/lib/auth';
 import { getDepartments } from '@/lib/db/departments';
 
 /**
@@ -7,6 +8,11 @@ import { getDepartments } from '@/lib/db/departments';
  */
 export async function GET(req: NextRequest) {
   try {
+    const user = await requireAuth();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const ok = await requirePermission(user, 'DEPARTMENT');
+    if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     // Parse query parameters from the URL
     const { searchParams } = new URL(req.url);
     const q = searchParams.get('q') ?? undefined;

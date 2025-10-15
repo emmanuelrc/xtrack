@@ -1,6 +1,7 @@
 // app/api/departments/worker-counts/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { requireAuth, requirePermission, getAllowedDepartmentIds } from "@/lib/auth";
 
 
 type FilterParams = {
@@ -22,12 +23,22 @@ function parseFilters(req: NextRequest): FilterParams {
 }
 
 export async function GET(req: NextRequest) {
+  const user = await requireAuth();
+  if (!user) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  const ok = await requirePermission(user, 'DEPARTMENT');
+  if (!ok) return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+
   const filters = parseFilters(req);
 
   try {
- 
+    const allowedDeptIds = getAllowedDepartmentIds(user);
+    if (Array.isArray(allowedDeptIds) && allowedDeptIds.length === 0) {
+      return NextResponse.json({ success: true, data: [] });
+    }
+
     const dosimeterWhere: any = {
       is_control: false,
+      ...(allowedDeptIds === null ? {} : { department_id: { in: allowedDeptIds } }),
     };
     if (filters.from || filters.to) {
       dosimeterWhere.createdAt = {};
@@ -44,7 +55,10 @@ export async function GET(req: NextRequest) {
     if (dGroup.length) {
       const ids = dGroup.map((r) => r.department_id);
       const depts = await prisma.department.findMany({
-        where: { id: { in: ids } },
+        where:
+          allowedDeptIds === null
+            ? { id: { in: ids } }
+            : { id: { in: ids.filter((id) => allowedDeptIds.includes(id)) } },
         select: { id: true, name: true },
       });
       const nameById = new Map(depts.map((d) => [d.id, d.name]));
@@ -65,6 +79,7 @@ export async function GET(req: NextRequest) {
         name: true,
         _count: { select: { Worker: true } },
       },
+      where: allowedDeptIds === null ? undefined : { id: { in: allowedDeptIds } },
       orderBy: { name: "asc" },
     });
 

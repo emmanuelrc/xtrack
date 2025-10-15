@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createRole } from '@/lib/db/roles';
+import { requireAuth, requirePermission } from '@/lib/auth';
 
 export async function POST(request: Request) {
   try {
+    const user = await requireAuth();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const ok = await requirePermission(user, 'ALL');
+    if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
     const { roleName, workerIds, departmentId } = await request.json();
 
     if (!roleName || !departmentId) {

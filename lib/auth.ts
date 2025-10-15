@@ -130,33 +130,55 @@ export async function deleteSession() {
   cookieStore.delete('auth_token')
 }
 
-export const getCurrentUser = async () => {
+export const getCurrentUser = cache(async () => {
   const session = await getSession()
   if (!session) return null
 
   try {
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    include: {
-      Worker: {
-        include: {
-          Role: {
-            include: {
-              Permission: true
-            }
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      include: {
+        Worker: {
+          include: {
+            Role: { include: { Permission: true } },
+            Department: true,
           },
-          Department: true
-        }
-      }
-    }
-  })
+        },
+      },
+    })
 
-  return user || null
+    return user || null
   } catch (error) {
     console.error('Error getting user by ID:', error)
     return null
   }
-}
+})
+
+export const getCurrentUserPermissions = cache(async () => {
+  const session = await getSession()
+  if (!session) return null
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: {
+        id: true,
+        username: true,
+        name: true,
+        Worker: {
+          select: {
+            id: true,
+            Role: { select: { Permission: { select: { name: true } } } },
+          },
+        },
+      },
+    })
+    return user || null
+  } catch (error) {
+    console.error('Error getting user permissions by ID:', error)
+    return null
+  }
+})
 
 export function extractPermissions(user: UserWithPermissions | null): string[] {
   if (!user?.Worker) {
@@ -178,6 +200,23 @@ export function userHasPermission(
   return permissions.includes(permissionName)
 }
 
+// Returns null when unrestricted (ALL), otherwise an array of allowed department IDs for DEPARTMENT users.
+// Returns an empty array when the user has neither ALL nor DEPARTMENT.
+export function getAllowedDepartmentIds(
+  user: UserWithPermissions | null
+): number[] | null {
+  if (!user?.Worker) return []
+  const permissions = extractPermissions(user)
+  if (permissions.includes('ALL')) {
+    return null
+  }
+  if (permissions.includes('DEPARTMENT')) {
+    const deptIds = (user.Worker.Department ?? []).map((d: any) => d.id).filter((n: any) => Number.isFinite(n))
+    return Array.from(new Set(deptIds))
+  }
+  return []
+}
+
 export async function requireAuth() {
   const user = await getCurrentUser()
   
@@ -192,12 +231,27 @@ export async function requirePermission(
   user: UserWithPermissions | null, 
   permissionName: 'ALL' | 'DEPARTMENT' | 'WORKER'
 ) {
-  if (!user) {
-    user = await requireAuth();
+  let candidate: any = user
+  if (!candidate) {
+    candidate = await getCurrentUserPermissions()
   }
-  if (!userHasPermission(user, permissionName)) {
+  if (!candidate) {
     return null
   }
-  
-  return user
+
+  // Extract permission names from either full or lightweight user shape
+  const permNames = Array.from(
+    new Set(
+      (candidate?.Worker?.Role ?? [])
+        .flatMap((r: any) => r?.Permission ?? [])
+        .map((p: any) => p?.name)
+        .filter(Boolean)
+    )
+  )
+
+  if (!permNames.includes(permissionName)) {
+    return null
+  }
+
+  return candidate
 }
