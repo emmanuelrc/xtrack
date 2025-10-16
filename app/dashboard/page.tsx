@@ -1,28 +1,34 @@
 // app/dashboard/page.tsx
 
-import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { Bell } from 'lucide-react'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Card } from '@/components/ui/card'
-import DashboardAlertsCard from './_components/DashboardAlertsCard'
-import StatsCard from './_components/StatsCard'
-import { extractPermissions, requireAuth, getAllowedDepartmentIds } from '@/lib/auth'
-import { getRecentExceedances } from '@/lib/db/alerts'
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import AppShell from "@/components/app-shell/AppShell";
+import PageHeader from "@/components/ui/PageHeader";
+import DashboardAlertsCard from "./_components/DashboardAlertsCard";
+import StatsCard from "./_components/StatsCard";
+import {
+  extractPermissions,
+  requireAuth,
+  getAllowedDepartmentIds,
+} from "@/lib/auth";
+import { getRecentExceedances } from "@/lib/db/alerts";
+import { Building2, Settings, ChevronRight } from "lucide-react";
 
 type DashboardAlert = {
-  workerId: number
-  name: string
-  role: string | null
-  month: number
-  reading_mSv: number
-  limit_mSv: number
-  placement?: 'CHEST' | 'EYE'
-  percent_over?: number
-}
+  workerId: number;
+  name: string;
+  role: string | null;
+  month: number;
+  reading_mSv: number;
+  limit_mSv: number;
+  placement?: "CHEST" | "EYE";
+  percent_over?: number;
+};
 
-async function getAlerts(allowedDeptIds: number[] | null): Promise<DashboardAlert[]> {
-  const rows = await getRecentExceedances(3, allowedDeptIds)
+async function getAlerts(
+  allowedDeptIds: number[] | null
+): Promise<DashboardAlert[]> {
+  const rows = await getRecentExceedances(3, allowedDeptIds);
   return rows.map((e: any) => ({
     workerId: e.workerId,
     name: e.name,
@@ -32,89 +38,107 @@ async function getAlerts(allowedDeptIds: number[] | null): Promise<DashboardAler
     limit_mSv: e.limit_mSv,
     placement: e.placement,
     percent_over: e.percent_over,
-  }))
+  }));
 }
 
 export default async function DashboardPage() {
-  const user = await requireAuth()
-  if (!user) redirect('/login')
+  const user = await requireAuth();
+  if (!user) redirect("/login");
 
-  const perms = extractPermissions(user)
-  const hasAll = perms.includes('ALL')
-  const hasDept = perms.includes('DEPARTMENT')
-  const hasWorker = perms.includes('WORKER')
+  const perms = extractPermissions(user);
+  const hasAll = perms.includes("ALL");
+  const hasDept = perms.includes("DEPARTMENT");
+  const hasWorker = perms.includes("WORKER");
 
+  // worker-only users go to their worker screen
   if (!hasAll && !hasDept && hasWorker && user.Worker?.id) {
-    redirect(`/worker/${user.Worker.id}`)
+    redirect(`/worker/${user.Worker.id}`);
   }
 
-  const allowedDeptIds = getAllowedDepartmentIds(user)
-  const alerts = await getAlerts(allowedDeptIds)
-  const headDeptId = hasDept && user.Worker?.Department?.[0]?.id
+  const allowedDeptIds = getAllowedDepartmentIds(user);
+  const alerts = await getAlerts(allowedDeptIds);
+  const headDeptId = hasDept && user.Worker?.Department?.[0]?.id;
 
-  const initials = (user.name?.split(' ').map(p => p[0]).join('') || user.username.slice(0,2) || 'U').toUpperCase()
-  const displayName = user.name || user.username
+  const displayName = user.name || user.username;
 
   return (
-    <main className="mx-auto max-w-md px-4 py-4 space-y-4">
-      <header className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          <div className="leading-tight">
-            <div className="text-xs text-gray-500">Welcome back,</div>
-            <div className="text-sm font-semibold text-emerald-700">{displayName}</div>
-          </div>
-        </div>
-        <Link href="/alerts" aria-label="View recent notifications">
-          <Card className="p-2 bg-gray-100 shadow-sm hover:bg-gray-200 transition">
-            <Bell className="h-5 w-5 text-gray-700" />
-          </Card>
-        </Link>
-      </header>
+    <AppShell active="dashboard">
+      <PageHeader
+        title="Dashboard"
+        description={`Welcome back, ${displayName}`}
+        titleClassName="text-[#16a34a]"
+      />
 
-      <h1 className="text-lg font-semibold text-emerald-700">Dashboard</h1>
-
+      {/* Alerts card (title is inside the card) */}
       <section>
-        <h2 className="text-gray-700 text-base font-semibold mb-2">Alerts</h2>
         <Link
           href="/alerts"
-          className="block focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-xl"
+          className="block focus:outline-none focus:ring-2 focus:ring-ring rounded-xl"
           aria-label="Open full over-limit alerts list"
         >
           <DashboardAlertsCard alerts={alerts} />
         </Link>
       </section>
 
+      {/* Stats — no external 'Statistics' heading; add bottom margin so CTAs don't collide */}
       {(hasAll || hasDept) && (
-        <section>
-          <h2 className="text-gray-700 text-base font-semibold mb-2">Statistics</h2>
+        <section className="mt-2 mb-4">
           <StatsCard />
         </section>
       )}
 
-      {hasAll && (
-        <section className="pt-2">
+      {/* Management shortcuts */}
+      <div className="grid grid-cols-1 gap-2 mt-2">
+        {hasAll && (
           <Link
             href="/organisation"
-            className="inline-flex w-full items-center justify-center rounded-xl bg-gray-200 py-3 text-sm font-medium text-gray-800 hover:bg-gray-300 transition"
+            aria-label="Manage your Organisation"
+            className="group block w-full focus:outline-none"
           >
-            Manage your Organisation
+            <div
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border
+                         bg-[#d0d1d1] px-4 py-3 shadow-sm transition
+                         hover:bg-[#e5e7eb] active:translate-y-[1px]
+                         focus-visible:ring-2 focus-visible:ring-[#16a34a]"
+            >
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#16a34a]/10 text-[#16a34a]">
+                  <Building2 className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-medium text-[#4b5563]">
+                  Manage your Organisation
+                </span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#6b7280] group-hover:text-[#374151]" />
+            </div>
           </Link>
-        </section>
-      )}
+        )}
 
-      {hasDept && headDeptId && (
-        <section className="pt-2">
+        {hasDept && headDeptId && (
           <Link
             href={`/department/${headDeptId}/edit`}
-            className="inline-flex w-full items-center justify-center rounded-xl bg-gray-200 py-3 text-sm font-medium text-gray-800 hover:bg-gray-300 transition"
+            aria-label="Manage your Department"
+            className="group block w-full focus:outline-none"
           >
-            Manage your Department
+            <div
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border
+                         bg-[#d0d1d1] px-4 py-3 shadow-sm transition
+                         hover:bg-[#e5e7eb] active:translate-y-[1px]
+                         focus-visible:ring-2 focus-visible:ring-[#16a34a]"
+            >
+              <div className="flex items-center gap-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#16a34a]/10 text-[#16a34a]">
+                  <Settings className="h-4 w-4" />
+                </span>
+                <span className="text-sm font-medium text-[#4b5563]">
+                  Manage your Department
+                </span>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[#6b7280] group-hover:text-[#374151]" />
+            </div>
           </Link>
-        </section>
-      )}
-    </main>
-  )
+        )}
+      </div>
+    </AppShell>
+  );
 }

@@ -1,4 +1,5 @@
 // app/dashboard/_components/DeptDonut.tsx
+
 "use client";
 
 import * as React from "react";
@@ -54,7 +55,8 @@ export default function DeptDonut({
   return (
     <Card>
       <CardHeader className="pb-0">
-        <CardTitle className="text-base">{title}</CardTitle>
+        {/* match Exposure Trends title color */}
+        <CardTitle className="text-base text-[#4b5563]">{title}</CardTitle>
       </CardHeader>
 
       <CardContent className="pb-2">

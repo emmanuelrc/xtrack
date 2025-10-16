@@ -1,4 +1,6 @@
 // app/dashboard/_components/DepartmentPills.tsx
+// Switch the accent green to the exact hex #16a34a (active bg + focus ring).
+
 "use client";
 
 type Dept = { id: number; name: string };
@@ -31,8 +33,8 @@ export default function DepartmentPills({ departments, selectedId, onSelect }: P
                 aria-checked={active}
                 className={[
                   "rounded-full px-3 py-0.5 text-[11px] font-medium transition-colors outline-none",
-                  "hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-[rgb(22_163_74)]",
-                  active ? "bg-[rgb(22_163_74)] text-white shadow-sm" : "text-gray-800",
+                  "hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-[#16a34a]",
+                  active ? "bg-[#16a34a] text-white shadow-sm" : "text-gray-800",
                 ].join(" ")}
               >
                 {abbrev(d.name)}

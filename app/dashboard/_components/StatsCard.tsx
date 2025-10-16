@@ -189,10 +189,13 @@ export default function StatsCard() {
 
   const hasDepts = departments.length > 0;
 
+  // CHANGES: title → gray; card background → slightly gray
   const ExposureTrendsCard = (
-    <Card className="bg-white shadow-md">
+    <Card className="bg-[#e2e2e2] shadow-md">
       <CardHeader className="pb-0">
-        <CardTitle className="text-base leading-5">Exposure Trends</CardTitle>
+        <CardTitle className="text-base leading-5 text-[#4b5563]">
+          Exposure Trends
+        </CardTitle>
       </CardHeader>
 
       <CardContent className="pt-0">
@@ -214,7 +217,7 @@ export default function StatsCard() {
                       className={[
                         "shrink-0 rounded-full h-6 px-2 text-[11px] leading-[1.1] transition-colors outline-none",
                         active
-                          ? "bg-[rgb(16,163,127)] text-white"
+                          ? "bg-[#16a34a] text-white"
                           : dim
                           ? "text-gray-500 hover:text-gray-600"
                           : "text-gray-800 hover:text-gray-900",
