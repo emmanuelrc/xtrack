@@ -1,9 +1,15 @@
+/* app/globals.css */
+
+/* keep tailwind v4 and animations */
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* dark mode helper used by shadcn */
 @custom-variant dark (&:is(.dark *));
 
+/* map tokens so Tailwind classes can read our CSS variables */
 @theme inline {
+  /* existing color + radius mappings (keep) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -41,8 +47,27 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* add a simple, shadcn-like type scale + helpers */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+
+  --leading-tight: 1.25;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
 }
 
+/* light theme tokens */
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -78,6 +103,7 @@
   --sidebar-ring: oklch(0.707 0.022 261.325);
 }
 
+/* dark theme tokens */
 .dark {
   --background: oklch(0.13 0.028 261.692);
   --foreground: oklch(0.985 0.002 247.839);
@@ -112,58 +138,140 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+/* base reset + typography */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+
+  html,
   body {
-    @apply bg-background text-foreground;
+    /* keep OpenType features for nicer curves and ligatures */
+    font-feature-settings: "rlig" 1, "calt" 1;
+    font-variation-settings: normal;
+  }
+
+  body {
+    /* extend previous body rule with the type baseline */
+    @apply bg-background text-foreground font-sans text-base leading-normal antialiased;
+  }
+
+  /* Headings: tight, confident spacing (like shadcn examples) */
+  h1 {
+    @apply text-3xl sm:text-4xl font-semibold tracking-tight;
+    line-height: var(--leading-tight);
+  }
+  h2 {
+    @apply text-2xl sm:text-3xl font-semibold tracking-tight;
+    line-height: var(--leading-tight);
+  }
+  h3 {
+    @apply text-xl sm:text-2xl font-semibold tracking-tight;
+    line-height: var(--leading-snug);
+  }
+  h4 {
+    @apply text-lg font-medium tracking-tight;
+    line-height: var(--leading-snug);
+  }
+
+  /* Body copy */
+  p {
+    @apply text-base;
+    line-height: var(--leading-relaxed);
+  }
+
+  /* Subtle secondary text */
+  small,
+  .muted {
+    @apply text-sm text-muted-foreground;
+  }
+
+  /* Links: understated, underline only on hover */
+  a {
+    @apply underline-offset-4 text-primary;
+  }
+  a:hover {
+    @apply underline;
+  }
+
+  /* Lists */
+  ul,
+  ol {
+    @apply pl-6;
+  }
+  li + li {
+    margin-top: 0.25rem;
+  }
+
+  /* Code blocks and inline code */
+  code,
+  kbd,
+  pre {
+    @apply font-mono text-sm;
+  }
+  pre {
+    @apply p-4 rounded-lg bg-muted text-foreground overflow-x-auto;
+  }
+
+  /* Blockquote */
+  blockquote {
+    @apply pl-4 border-l-2 text-muted-foreground;
+    border-color: var(--border);
+  }
+
+  /* Tables – complements shadcn Table/DataTable */
+  table {
+    @apply w-full text-sm;
+  }
+  th {
+    @apply text-left font-medium text-muted-foreground;
+  }
+  td {
+    @apply align-middle;
+  }
+
+  /* For dashboards where numbers must align */
+  .numeric {
+    font-variant-numeric: tabular-nums;
   }
 }
 
 /* --- Slim edge scrollbars (works in Chrome/Edge/Firefox) --- */
 .scrollbar-slim {
   /* Firefox */
-  scrollbar-width: thin;               /* skinny */
-  scrollbar-color: oklch(0.707 0.022 261.325) transparent; /* thumb / track */
-  /* Keep layout stable when the bar appears */
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.707 0.022 261.325) transparent;
+  /* keep layout stable when the bar appears */
   scrollbar-gutter: stable both-edges;
 }
 
 /* Chrome/Edge/WebKit */
 .scrollbar-slim::-webkit-scrollbar {
-  width: 6px;                          /* vertical bar thickness */
-  height: 6px;                         /* horizontal bar thickness */
+  width: 6px;
+  height: 6px;
 }
-
 .scrollbar-slim::-webkit-scrollbar-thumb {
-  background: oklch(0.707 0.022 261.325); /* matches --ring tone */
+  background: oklch(0.707 0.022 261.325);
   border-radius: 9999px;
 }
-
 .scrollbar-slim::-webkit-scrollbar-thumb:hover {
   background: oklch(0.577 0.018 261.325);
 }
-
 .scrollbar-slim::-webkit-scrollbar-track {
-  background: transparent;             /* no gutter color */
+  background: transparent;
 }
-
-/* Hide the old up/down/left/right buttons if the OS shows them */
 .scrollbar-slim::-webkit-scrollbar-button {
   width: 0;
   height: 0;
   display: none;
 }
 
-/* Hide scrollbars by default; reveal on parent hover.
-   Works in Chromium/WebKit and Firefox. */
-
+/* Hide scrollbars by default; reveal on parent hover. */
 .hover-scroll {
   /* Firefox */
   scrollbar-width: none;
   /* WebKit */
-  -ms-overflow-style: none; /* IE/Edge legacy */
+  -ms-overflow-style: none;
 }
 .hover-scroll::-webkit-scrollbar {
   width: 0;
@@ -186,7 +294,7 @@
 .group\/scroll:hover .hover-scroll::-webkit-scrollbar-thumb {
   background: #9ca3af;                  /* gray-400 */
   border-radius: 9999px;
-  border: 2px solid #e5e7eb;            /* gives a pill look */
+  border: 2px solid #e5e7eb;            /* pill look */
 }
 .group\/scroll:hover .hover-scroll::-webkit-scrollbar-thumb:hover {
   background: #6b7280;                  /* gray-500 on hover */
